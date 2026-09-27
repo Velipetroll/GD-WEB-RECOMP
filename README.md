@@ -1,7 +1,7 @@
-# Geometry Dash Web — Decompilation & Native C++ Port
+# GD-WEB-RECOMP — Geometry Dash Web Native C++ Port
 
 <p align="center">
-  <img src="./assets/banner.png" alt="Geometry Dash Web C++ Port" width="100%">
+  <img src="./assets/banner.png" alt="GD-WEB-RECOMP" width="100%">
 </p>
 
 > # ⚠️ **Warning:** This project uses AI.
