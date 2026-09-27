@@ -13,7 +13,7 @@
 #include <cmath>
 
 static constexpr bool DEBUG_SPAWN_AT_END = 0;
-static constexpr bool SHOW_FPS = 1;
+static constexpr bool SHOW_FPS = 0;
 
 static void openURL(const std::string& url) {
     SDL_OpenURL(url.c_str());
