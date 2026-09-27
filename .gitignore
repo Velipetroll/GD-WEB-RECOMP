@@ -1,0 +1,21 @@
+# Build artifacts & binaries
+build/
+bin/
+obj/
+*.o
+*.d
+*.obj
+*.exe
+
+# Configuration & user settings
+settings.cfg
+
+# Tool generation directories
+Generated_Files/
+Archivos_Generados/
+
+# Temporary / editor files
+*.swp
+*.swo
+*~
+.DS_Store

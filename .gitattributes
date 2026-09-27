@@ -1,0 +1,4 @@
+src/miniaudio.h linguist-vendored
+src/stb_vorbis.c linguist-vendored
+src/stb_image.h linguist-vendored
+src/stb_truetype.h linguist-vendored
