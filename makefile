@@ -18,7 +18,7 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
 CXX = g++
-CXXFLAGS = -std=c++17 -O3 -march=native -flto -fno-math-errno -MMD -MP
+CXXFLAGS = -std=c++17 -O3 -march=native -flto -ffast-math -fomit-frame-pointer -fno-semantic-interposition -MMD -MP
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))

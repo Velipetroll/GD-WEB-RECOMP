@@ -96,7 +96,8 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
 void drawAtlasFrame(const std::string& frameName, float x, float y,
                     float w = 0.0f, float h = 0.0f, float rotation = 0.0f,
                     float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f,
-                    bool flipX = false, bool flipY = false);
+                    bool flipX = false, bool flipY = false,
+                    BlendMode blend = BLEND_NORMAL);
 
 void drawScale9(const std::string& textureKey, float x, float y, float w, float h, float cornerSize,
                 float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);

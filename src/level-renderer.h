@@ -41,10 +41,9 @@ struct EnterEffectTrigger {
 };
 
 struct PortalVortexParticle {
-    float x = 0.0f, y = 0.0f;
+    float rx = 0.0f, ry = 0.0f;
     float vx = 0.0f, vy = 0.0f;
     float life = 0.0f, maxLife = 0.5f;
-    float scale = 0.5f;
 };
 
 class LevelRenderer {
@@ -98,7 +97,7 @@ private:
     void _addCollisionToSection(size_t objIndex, float worldX);
     std::string _getGlowFrameName(const std::string& frame);
 
-    void _updateEndPortalVortex(float dt);
+    void _updateEndPortalVortex(float dt, float cameraX);
 
     float _tileW = 1012.0f;
     std::vector<float> _groundWorldX;

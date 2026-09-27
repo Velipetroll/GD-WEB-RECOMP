@@ -237,6 +237,11 @@ void d3d8_setBlendMode(BlendMode mode) {
 void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexID, BlendMode currentBlend) {
     if (!s_d3d8.device || !s_d3d8.vb || !s_d3d8.ib || count == 0) return;
 
+    if (!s_d3d8.inScene) {
+        s_d3d8.device->BeginScene();
+        s_d3d8.inScene = true;
+    }
+
     IDirect3DTexture8* tex = s_d3d8.whiteTex;
     if (currentTexID != 0) {
         auto it = s_d3d8.textures.find(currentTexID);
@@ -342,6 +347,12 @@ void d3d8_drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size
 
 void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffsetY, float uvW, float uvH, float logicalW, float logicalH, float bgR, float bgG, float bgB, float scaleX, float scaleY) {
     if (!s_d3d8.device) return;
+
+    if (!s_d3d8.inScene) {
+        s_d3d8.device->BeginScene();
+        s_d3d8.inScene = true;
+    }
+
     IDirect3DTexture8* tex = s_d3d8.whiteTex;
     auto it = s_d3d8.textures.find(texID);
     if (it != s_d3d8.textures.end() && it->second) tex = it->second;

@@ -189,12 +189,12 @@ void drawBitmapText(const std::string& fontKey, const std::string& text,
             float gw = c->width * scale;
             float gh = c->height * scale;
 
-            RenderDevice::get().batchQuad(
+            RenderDevice::get().batchAxisAlignedQuad(
                 font->textureID,
-                gx,      gy,      c->u0, c->v0,
-                gx + gw, gy,      c->u1, c->v0,
-                gx + gw, gy + gh, c->u1, c->v1,
-                gx,      gy + gh, c->u0, c->v1,
+                gx,      gy,
+                gx + gw, gy + gh,
+                c->u0,   c->v0,
+                c->u1,   c->v1,
                 r, g, b, a, curBlend
             );
         }
@@ -326,12 +326,12 @@ void drawGenericText(const std::string& text, float x, float y, float size,
         float y0 = y + (q.y0 - y) * fontScale;
         float y1 = y + (q.y1 - y) * fontScale;
 
-        RenderDevice::get().batchQuad(
+        RenderDevice::get().batchAxisAlignedQuad(
             ttfFontTexID,
-            x0, y0, q.s0, q.t0,
-            x1, y0, q.s1, q.t0,
-            x1, y1, q.s1, q.t1,
-            x0, y1, q.s0, q.t1,
+            x0, y0,
+            x1, y1,
+            q.s0, q.t0,
+            q.s1, q.t1,
             r, g, b, a, curBlend
         );
     }

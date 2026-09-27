@@ -215,6 +215,7 @@ void GameScene::_hideEndLayer(std::function<void()> onComplete) {
 void GameScene::startGame() {
     if (!_menuActive) return;
     _menuActive = false;
+    _menuParticles.clear();
 
     if (DEBUG_SPAWN_AT_END) {
         _slideIn = false;
@@ -856,7 +857,7 @@ void GameScene::_startCompleteLightRays() {
         ray.targetH = targetLen;
         ray.currentW = 2.0f;
         ray.currentH = 1.0f;
-        ray.maxAlpha = std::clamp((155.0f / 255.0f) + (100.0f / 255.0f) * rnd4, 0.0f, 1.0f);
+        ray.maxAlpha = 1.0f;
         ray.currentAlpha = 0.0f;
         ray.delay = delay;
         ray.duration = 0.18f + 0.04f * rnd3;
@@ -925,6 +926,7 @@ void GameScene::_renderCompleteLightRays() {
         RenderDevice::get().drawColorQuad(x0, y0, x1, y1, x2, y2, x3, y3,
                                           0.0f, 1.0f, 0.0f, ray.currentAlpha, BLEND_ADD);
     }
+    RenderDevice::get().flushBatch();
     applyBlendMode(BLEND_NORMAL);
 }
 
@@ -1104,10 +1106,12 @@ void GameScene::update(float dt) {
         while (_menuGlitterTimer >= 0.035f) {
             _menuGlitterTimer -= 0.035f;
             MenuGlitter mg;
-            mg.x = (screenWidth * 0.5f) + ((rand() % 260) - 130);
-            mg.y = 320.0f + ((rand() % 200) - 100);
+            float rndX = (float)rand() / (float)RAND_MAX;
+            float rndY = (float)rand() / (float)RAND_MAX;
+            mg.rx = rndX * 260.0f - 130.0f;
+            mg.ry = rndY * 200.0f - 100.0f;
             mg.life = 0.0f;
-            mg.maxLife = 1.0f + (rand() % 100) / 100.0f;
+            mg.maxLife = 1.0f + ((float)rand() / (float)RAND_MAX);
             mg.scale = 0.5f;
             _menuParticles.push_back(mg);
         }
@@ -1198,6 +1202,7 @@ void GameScene::update(float dt) {
         _player->update(dt, _playerWorldX, _cameraY, _cameraX);
         _level->stepGroundAnimation(dt);
         _level->updateGroundTiles(_slideGroundX, _cameraY, dt);
+        _level->updatePortals(dt, _cameraX);
         _level->applyEnterEffects(_cameraX);
         _audio.update(dt);
         _endSequenceTimer += dt;
@@ -1479,15 +1484,17 @@ void GameScene::render() {
         _level->renderLayer0(_cameraX, _cameraY);
         _level->renderLayer1(_cameraX, _cameraY);
         RenderDevice::get().popMatrix();
-    }
 
-    if (!_flightGlitters.empty()) {
-        for (const auto& fg : _flightGlitters) {
-            float pt = fg.life / fg.maxLife;
-            float sc = fg.scale * (1.0f - pt);
-            float alpha = 1.0f - pt;
-            float size = 20.0f * sc;
-            drawAtlasFrame("square.png", fg.x - _cameraX, fg.y + _cameraY, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha);
+        _renderCompleteLightRays();
+
+        if (!_flightGlitters.empty()) {
+            for (const auto& fg : _flightGlitters) {
+                float pt = fg.life / fg.maxLife;
+                float sc = fg.scale * (1.0f - pt);
+                float alpha = 1.0f - pt;
+                float size = 20.0f * sc;
+                drawAtlasFrame("square.png", fg.x - _cameraX, fg.y + _cameraY, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
+            }
         }
     }
 
@@ -1498,7 +1505,6 @@ void GameScene::render() {
 
     _level->renderGround(_slideGroundX, _cameraY);
 
-    _renderCompleteLightRays();
     WinEffects::render();
 
     if (_flashAlpha > 0.0f) {
@@ -1551,22 +1557,20 @@ void GameScene::render() {
 
         BlendMode curBlend = RenderDevice::get().getBlendMode();
         for (const auto& q : _cachedFpsGlyphs) {
-            RenderDevice::get().batchQuad(
+            RenderDevice::get().batchAxisAlignedQuad(
                 _cachedFpsTexID,
-                q.gx + 1.0f, q.gy + 1.0f, q.u0, q.v0,
-                q.gx + q.gw + 1.0f, q.gy + 1.0f, q.u1, q.v0,
-                q.gx + q.gw + 1.0f, q.gy + q.gh + 1.0f, q.u1, q.v1,
-                q.gx + 1.0f, q.gy + q.gh + 1.0f, q.u0, q.v1,
+                q.gx + 1.0f, q.gy + 1.0f,
+                q.gx + q.gw + 1.0f, q.gy + q.gh + 1.0f,
+                q.u0, q.v0, q.u1, q.v1,
                 0.0f, 0.0f, 0.0f, 0.6f, curBlend
             );
         }
         for (const auto& q : _cachedFpsGlyphs) {
-            RenderDevice::get().batchQuad(
+            RenderDevice::get().batchAxisAlignedQuad(
                 _cachedFpsTexID,
-                q.gx, q.gy, q.u0, q.v0,
-                q.gx + q.gw, q.gy, q.u1, q.v0,
-                q.gx + q.gw, q.gy + q.gh, q.u1, q.v1,
-                q.gx, q.gy + q.gh, q.u0, q.v1,
+                q.gx, q.gy,
+                q.gx + q.gw, q.gy + q.gh,
+                q.u0, q.v0, q.u1, q.v1,
                 0.35f, 1.0f, 0.35f, 0.9f, curBlend
             );
         }
@@ -1608,14 +1612,16 @@ void GameScene::_renderMenu() {
     float midX = screenWidth * 0.5f;
     float midY = screenHeight * 0.5f;
     float guiScale = getGuiScale();
+    float playY = midY + (_menuPlayBtnY - 320.0f) * guiScale;
 
-    applyBlendMode(BLEND_ADD);
     for (const auto& mp : _menuParticles) {
-        float alpha = 0.6f * (1.0f - mp.life / mp.maxLife) * (1.0f - t);
-        float sc = mp.scale * (1.0f - mp.life / mp.maxLife) * guiScale;
-        drawAtlasFrame("square.png", mp.x, mp.y, 20.0f * sc, 20.0f * sc, 0.0f, 0.0f, 0.314f, 0.745f, alpha);
+        float pt = std::min(mp.life / mp.maxLife, 1.0f);
+        float alpha = (0.6f + (0.2f - 0.6f) * pt) * (1.0f - t);
+        float sc = mp.scale * (1.0f - pt) * guiScale;
+        float px = midX + mp.rx * guiScale;
+        float py = playY + mp.ry * guiScale;
+        drawAtlasFrame("square.png", px, py, 20.0f * sc, 20.0f * sc, 0.0f, 0.0f, 0.3137f, 0.7451f, alpha, false, false, BLEND_ADD);
     }
-    applyBlendMode(BLEND_NORMAL);
 
     const AtlasFrame* logoAf = findAtlasFrame("GJ_logo_001.png");
     float origLogoW = logoAf ? logoAf->w : 430.0f;
@@ -1765,17 +1771,16 @@ void GameScene::_renderSlider(float centerX, float centerY, float progress, bool
                 float segU0 = u0_base;
                 float segU1 = u0_base + uSpan * frac;
 
-                RenderDevice::get().batchQuad(
+                RenderDevice::get().batchAxisAlignedQuad(
                     texID,
-                    trackStartX + drawn,        yTop, segU0, v0_base,
-                    trackStartX + drawn + curW, yTop, segU1, v0_base,
-                    trackStartX + drawn + curW, yBot, segU1, v1_base,
-                    trackStartX + drawn,        yBot, segU0, v1_base,
+                    trackStartX + drawn,        yTop,
+                    trackStartX + drawn + curW, yBot,
+                    segU0, v0_base,
+                    segU1, v1_base,
                     1.0f, 1.0f, 1.0f, 1.0f, BLEND_NORMAL
                 );
                 drawn += curW;
             }
-            RenderDevice::get().flushBatch();
         } else {
             RenderDevice::get().drawRect(trackStartX, yTop, fillW, barH, 0.25f, 0.85f, 0.15f, 1.0f);
         }
@@ -1840,15 +1845,14 @@ void GameScene::_renderPauseOverlay() {
         float u1_bar = u0_bar + (barFrame->u1 - u0_bar) * (cropW / origW);
         float v1_bar = barFrame->v1;
 
-        RenderDevice::get().batchQuad(
+        RenderDevice::get().batchAxisAlignedQuad(
             texID,
-            startX,         startY,          u0_bar, v0_bar,
-            startX + drawW, startY,          u1_bar, v0_bar,
-            startX + drawW, startY + totalH, u1_bar, v1_bar,
-            startX,         startY + totalH, u0_bar, v1_bar,
+            startX,         startY,
+            startX + drawW, startY + totalH,
+            u0_bar, v0_bar,
+            u1_bar, v1_bar,
             0.0f, 1.0f, 0.0f, 1.0f, BLEND_NORMAL
         );
-        RenderDevice::get().flushBatch();
     }
 
     drawBitmapText("bigFont", std::to_string(percent) + "%", midX, barY, 0.50f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f, true);

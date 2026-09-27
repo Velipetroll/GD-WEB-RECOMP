@@ -179,44 +179,50 @@ float LevelRenderer::getCeilingY() const {
     return _flyGroundActive ? _flyCeilingY : 100000.0f;
 }
 
-void LevelRenderer::_updateEndPortalVortex(float dt) {
+void LevelRenderer::_updateEndPortalVortex(float dt, float cameraX) {
     if (endXPos <= 0.0f) return;
-    if (endXPos < _lastCameraX - 300.0f || endXPos > _lastCameraX + (float)screenWidth + 600.0f) {
+    if (endXPos < cameraX - 400.0f || endXPos > cameraX + (float)screenWidth + 600.0f) {
         if (!_vortexParticles.empty()) _vortexParticles.clear();
         return;
     }
 
     _vortexTimer += dt;
-    while (_vortexTimer >= 0.015f) {
-        _vortexTimer -= 0.015f;
-        if (_vortexParticles.size() >= 40) break; // Reduced from 100 to save fill-rate on GMA
+    if (_vortexTimer > 0.1f) _vortexTimer = 0.1f;
+    while (_vortexTimer >= 0.010f) {
+        _vortexTimer -= 0.010f;
+        if (_vortexParticles.size() < 100) {
+            float rnd1 = (float)(rand() % 10000) / 10000.0f;
+            float rnd2 = (float)(rand() % 10000) / 10000.0f;
+            float angle = ((85.0f + 190.0f * rnd1) * 3.14159265f) / 180.0f;
+            float dist = 320.0f + 80.0f * (2.0f * rnd2 - 1.0f);
 
-        float angle = ((85.0f + 190.0f * ((rand() % 1000) / 1000.0f)) * 3.14159265f) / 180.0f;
-        float dist = 320.0f + 80.0f * (((rand() % 1000) / 500.0f) - 1.0f);
+            float rx = std::cos(angle) * dist;
+            float ry = std::sin(angle) * dist;
 
-        PortalVortexParticle vp;
-        vp.x = (endXPos - 30.0f) + std::cos(angle) * dist;
-        vp.y = flipY(_endPortalGameY) + std::sin(angle) * dist;
+            float toPortalX = -rx;
+            float toPortalY = -ry;
+            float d = std::sqrt(toPortalX * toPortalX + toPortalY * toPortalY);
+            if (d < 1.0f) d = 1.0f;
 
-        float toPortalX = (endXPos - 30.0f) - vp.x;
-        float toPortalY = flipY(_endPortalGameY) - vp.y;
-        float d = std::sqrt(toPortalX * toPortalX + toPortalY * toPortalY);
-        if (d < 1.0f) d = 1.0f;
+            float maxLife = (200.0f + (rand() % 801)) / 1000.0f;
+            float speed = (d - 20.0f) / maxLife;
 
-        vp.maxLife = (200.0f + (rand() % 801)) / 1000.0f;
-        vp.life = 0.0f;
-        float speed = (d - 20.0f) / vp.maxLife;
-        vp.vx = (toPortalX / d) * speed;
-        vp.vy = (toPortalY / d) * speed;
-        vp.scale = 0.75f;
+            PortalVortexParticle vp;
+            vp.rx = rx;
+            vp.ry = ry;
+            vp.vx = (toPortalX / d) * speed;
+            vp.vy = (toPortalY / d) * speed;
+            vp.life = 0.0f;
+            vp.maxLife = maxLife;
 
-        _vortexParticles.push_back(vp);
+            _vortexParticles.push_back(vp);
+        }
     }
 
     for (auto& vp : _vortexParticles) {
         vp.life += dt;
-        vp.x += vp.vx * dt;
-        vp.y += vp.vy * dt;
+        vp.rx += vp.vx * dt;
+        vp.ry += vp.vy * dt;
     }
     _vortexParticles.erase(
         std::remove_if(_vortexParticles.begin(), _vortexParticles.end(), [](const PortalVortexParticle& vp) {
@@ -236,8 +242,6 @@ void LevelRenderer::updateGroundTiles(float cameraX, float cameraY, float dt) {
             _maxGroundWorldX = _groundWorldX[i];
         }
     }
-
-    _updateEndPortalVortex(dt);
 }
 
 void LevelRenderer::_addToSection(const VisualSprite& sprite) {
@@ -561,6 +565,8 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
     _floorLineAf = findAtlasFrame("floorLine_01_001.png");
     _shadowAf = findAtlasFrame("groundSquareShadow_001.png");
     _cachedCollisionSec = -1;
+    _vortexParticles.clear();
+    _vortexTimer = 0.0f;
 }
 
 const std::vector<LevelObject*>& LevelRenderer::getNearbySectionObjects(float cameraX) {
@@ -728,6 +734,8 @@ void LevelRenderer::resetVisibility() { _visMinSec = _visMaxSec = -1; }
 void LevelRenderer::resetObjects() {
     _cachedCollisionSec = -1;
     for (auto& obj : objects) obj.activated = false;
+    _vortexParticles.clear();
+    _vortexTimer = 0.0f;
 }
 
 void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
@@ -735,11 +743,12 @@ void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
     int startSec = std::max(0, (int)std::floor((cameraX - sectionMargin) / 400.0f));
     int endSec = std::min((int)_sections.size() - 1, (int)std::floor((cameraX + screenWidth + sectionMargin) / 400.0f));
 
-    beginSpriteBatch();
+    const float minX = cameraX - 80.0f;
+    const float maxX = cameraX + (float)screenWidth + 80.0f;
 
     for (int i = startSec; i <= endSec; ++i) {
         for (const auto& s : _sections[i].layer0) {
-            if (!s.visible || s.a <= 0.001f) continue;
+            if (!s.visible || s.a <= 0.001f || s.x < minX || s.x > maxX) continue;
 
             float dw = s.w * s.scaleX;
             float dh = s.h * s.scaleY;
@@ -760,20 +769,7 @@ void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
 
     if (endXPos > 0.0f && endXPos >= cameraX - 200.0f && endXPos <= cameraX + (float)screenWidth + 500.0f) {
         float pY = flipY(_endPortalGameY);
-        const AtlasFrame* sqAf = _sqAf ? _sqAf : findAtlasFrame("square.png");
         uint32_t webSheetId = _webSheetId;
-
-        for (const auto& vp : _vortexParticles) {
-            float pt = vp.life / vp.maxLife;
-            float scale = vp.scale * (1.0f - pt * 0.8f);
-            float alpha = 1.0f - pt;
-            float size = 20.0f * scale;
-
-            if (sqAf && webSheetId) {
-                batchAtlasFrame(webSheetId, sqAf, vp.x, vp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
-            }
-        }
-
         const AtlasFrame* gradAf = _gradAf ? _gradAf : findAtlasFrame("gradientBar.png");
         float gw = gradAf ? gradAf->w : 64.0f;
         float shineX = endXPos - 58.0f;
@@ -787,10 +783,12 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
     const float sectionMargin = 240.0f;
     int startSec = std::max(0, (int)std::floor((cameraX - sectionMargin) / 400.0f));
     int endSec = std::min((int)_sections.size() - 1, (int)std::floor((cameraX + screenWidth + sectionMargin) / 400.0f));
+    const float minX = cameraX - 80.0f;
+    const float maxX = cameraX + (float)screenWidth + 80.0f;
 
     for (int i = startSec; i <= endSec; ++i) {
         for (const auto& s : _sections[i].layer1) {
-            if (!s.visible || s.a <= 0.001f) continue;
+            if (!s.visible || s.a <= 0.001f || s.x < minX || s.x > maxX) continue;
 
             float dw = s.w * s.scaleX;
             float dh = s.h * s.scaleY;
@@ -859,6 +857,8 @@ static std::vector<InLevelPortalEmitter> _inLevelPortalEmitters;
 static bool _inLevelPortalsIndexed = false;
 
 void LevelRenderer::updatePortals(float dt, float cameraX) {
+    _updateEndPortalVortex(dt, cameraX);
+
     if (!_inLevelPortalsIndexed) {
         _inLevelPortalEmitters.clear();
         for (const auto& obj : objects) {
@@ -926,14 +926,19 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
         }
     }
 
-    if (!hasSprites && !hasPortals) return;
+    bool hasEndPortal = (endXPos > 0.0f && endXPos >= cameraX - 400.0f && endXPos <= cameraX + (float)screenWidth + 600.0f && !_vortexParticles.empty());
+
+    if (!hasSprites && !hasPortals && !hasEndPortal) return;
 
     RenderDevice::get().pushMatrix();
     RenderDevice::get().translate(-cameraX, cameraY);
 
+    const float minX = cameraX - 80.0f;
+    const float maxX = cameraX + (float)screenWidth + 80.0f;
+
     for (int i = startSec; i <= endSec; ++i) {
         for (const auto& s : _sections[i].layer2) {
-            if (!s.visible || s.a <= 0.001f) continue;
+            if (!s.visible || s.a <= 0.001f || s.x < minX || s.x > maxX) continue;
 
             float dw = s.w;
             float dh = s.h;
@@ -973,6 +978,23 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
                 if (sqAf && webSheetId) {
                     batchAtlasFrame(webSheetId, sqAf, px, py, 20.0f * sc, 20.0f * sc, 0.0f, r, g, b, alpha, false, false, BLEND_ADD);
                 }
+            }
+        }
+    }
+
+    if (hasEndPortal) {
+        float emitterX = endXPos - 30.0f;
+        float emitterY = flipY(_endPortalGameY);
+        for (const auto& vp : _vortexParticles) {
+            float pt = std::min(vp.life / vp.maxLife, 1.0f);
+            float sc = 0.75f + (0.125f - 0.75f) * pt;
+            float alpha = 1.0f - pt;
+            float size = 20.0f * sc;
+            float px = emitterX + vp.rx;
+            float py = emitterY + vp.ry;
+
+            if (sqAf && webSheetId) {
+                batchAtlasFrame(webSheetId, sqAf, px, py, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
             }
         }
     }

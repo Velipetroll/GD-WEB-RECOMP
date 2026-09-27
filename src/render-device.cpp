@@ -120,6 +120,10 @@ bool RenderDevice::_initOpenGL() {
     glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
+    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
+
     uint32_t whitePixels[4] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
     glGenTextures(1, &_glWhiteTex);
     glBindTexture(GL_TEXTURE_2D, _glWhiteTex);
@@ -427,6 +431,11 @@ void RenderDevice::flushBatch() {
     }
     if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB && _d3d9IB) {
         auto* dev = (IDirect3DDevice9*)_d3d9Device;
+        if (!_inScene) {
+            dev->BeginScene();
+            _inScene = true;
+        }
+
         IDirect3DTexture9* tex = (IDirect3DTexture9*)_d3d9WhiteTex;
         if (_currentTexID != 0) {
             auto it = _d3d9Textures.find(_currentTexID);
@@ -473,18 +482,22 @@ void RenderDevice::flushBatch() {
         _lastGLTex = bindTex;
     }
 
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-    // OpenGL 1.1 Fast Client Arrays with 20 bytes (GL_UNSIGNED_BYTE RGBA)
     glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
     glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
     glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
 
     glDrawArrays(GL_QUADS, 0, (GLsizei)_batchVertCount);
-
     _batchVertCount = 0;
+}
+
+static inline uint32_t fastPackColor(float r, float g, float b, float a, bool isOpenGL) {
+    if (r >= 1.0f && g >= 1.0f && b >= 1.0f && a >= 1.0f) return 0xFFFFFFFF;
+    uint32_t ca = (uint32_t)(a <= 0.0f ? 0 : (a >= 1.0f ? 255 : (int)(a * 255.0f)));
+    uint32_t cr = (uint32_t)(r <= 0.0f ? 0 : (r >= 1.0f ? 255 : (int)(r * 255.0f)));
+    uint32_t cg = (uint32_t)(g <= 0.0f ? 0 : (g >= 1.0f ? 255 : (int)(g * 255.0f)));
+    uint32_t cb = (uint32_t)(b <= 0.0f ? 0 : (b >= 1.0f ? 255 : (int)(b * 255.0f)));
+    return isOpenGL ? ((ca << 24) | (cb << 16) | (cg << 8) | cr)
+                    : ((ca << 24) | (cr << 16) | (cg << 8) | cb);
 }
 
 void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float v0,
@@ -496,22 +509,10 @@ void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float
     if (_batchVertCount + 4 > MAX_BATCH_VERTS || texID != _currentTexID || blend != _currentBlend) {
         flushBatch();
         _currentTexID = texID;
-        setBlendMode(blend);
+        _currentBlend = blend;
     }
 
-    uint32_t packedColor;
-    if (r >= 1.0f && g >= 1.0f && b >= 1.0f && a >= 1.0f) {
-        packedColor = 0xFFFFFFFF;
-    } else {
-        uint32_t ca = (uint32_t)(std::clamp(a, 0.0f, 1.0f) * 255.0f);
-        uint32_t cr = (uint32_t)(std::clamp(r, 0.0f, 1.0f) * 255.0f);
-        uint32_t cg = (uint32_t)(std::clamp(g, 0.0f, 1.0f) * 255.0f);
-        uint32_t cb = (uint32_t)(std::clamp(b, 0.0f, 1.0f) * 255.0f);
-        packedColor = (_backend != RENDERER_OPENGL)
-            ? ((ca << 24) | (cr << 16) | (cg << 8) | cb)
-            : ((ca << 24) | (cb << 16) | (cg << 8) | cr);
-    }
-
+    uint32_t packedColor = fastPackColor(r, g, b, a, _backend == RENDERER_OPENGL);
     float ox = _transX, oy = _transY;
 
     if (_backend != RENDERER_OPENGL) {
@@ -545,8 +546,42 @@ void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float
     _batchVertCount += 4;
 }
 
+void RenderDevice::batchAxisAlignedQuad(uint32_t texID, float x0, float y0, float x1, float y1,
+                                       float u0, float v0, float u1, float v1,
+                                       float r, float g, float b, float a, BlendMode blend)
+{
+    if (_batchVertCount + 4 > MAX_BATCH_VERTS || texID != _currentTexID || blend != _currentBlend) {
+        flushBatch();
+        _currentTexID = texID;
+        _currentBlend = blend;
+    }
+
+    uint32_t packedColor = fastPackColor(r, g, b, a, _backend == RENDERER_OPENGL);
+    float ox = _transX, oy = _transY;
+
+    if (_backend != RENDERER_OPENGL) {
+        float sx = _scaleX, sy = _scaleY;
+        float rx0 = (x0 + ox) * sx, ry0 = (y0 + oy) * sy;
+        float rx1 = (x1 + ox) * sx, ry1 = (y1 + oy) * sy;
+        D3DVertex* v = &_batchBuffer.d3d[_batchVertCount];
+        v[0] = { rx0, ry0, 0.5f, 1.0f, packedColor, u0, v0 };
+        v[1] = { rx1, ry0, 0.5f, 1.0f, packedColor, u1, v0 };
+        v[2] = { rx1, ry1, 0.5f, 1.0f, packedColor, u1, v1 };
+        v[3] = { rx0, ry1, 0.5f, 1.0f, packedColor, u0, v1 };
+    } else {
+        float rx0 = x0 + ox, ry0 = y0 + oy;
+        float rx1 = x1 + ox, ry1 = y1 + oy;
+        GLVertex* v = &_batchBuffer.gl[_batchVertCount];
+        v[0] = { rx0, ry0, packedColor, u0, v0 };
+        v[1] = { rx1, ry0, packedColor, u1, v0 };
+        v[2] = { rx1, ry1, packedColor, u1, v1 };
+        v[3] = { rx0, ry1, packedColor, u0, v1 };
+    }
+    _batchVertCount += 4;
+}
+
 void RenderDevice::drawRect(float x, float y, float w, float h, float r, float g, float b, float a, BlendMode blend) {
-    batchQuad(0, x, y, 0.0f, 0.0f, x + w, y, 1.0f, 0.0f, x + w, y + h, 1.0f, 1.0f, x, y + h, 0.0f, 1.0f, r, g, b, a, blend);
+    batchAxisAlignedQuad(0, x, y, x + w, y + h, 0.0f, 0.0f, 1.0f, 1.0f, r, g, b, a, blend);
 }
 
 void RenderDevice::drawColorQuad(float x0, float y0, float x1, float y1, float x2, float y2, float x3, float y3, float r, float g, float b, float a, BlendMode blend) {
@@ -645,6 +680,10 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glPopMatrix();
     glEnable(GL_TEXTURE_2D);
+
+    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
 }
 
 void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, BlendMode blend) {
@@ -698,9 +737,14 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
     glVertexPointer(2, GL_FLOAT, 0, coordsXY);
     glColorPointer(4, GL_FLOAT, 0, colorsRGBA);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)vertCount);
+    glEnableClientState(GL_COLOR_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glPopMatrix();
     glEnable(GL_TEXTURE_2D);
+
+    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
 }
 
 void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float camY, float bgR, float bgG, float bgB) {
@@ -733,6 +777,11 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     }
     if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB) {
         auto* dev = (IDirect3DDevice9*)_d3d9Device;
+        if (!_inScene) {
+            dev->BeginScene();
+            _inScene = true;
+        }
+
         IDirect3DTexture9* tex = (IDirect3DTexture9*)_d3d9WhiteTex;
         auto it = _d3d9Textures.find(actualTexID);
         if (it != _d3d9Textures.end() && it->second) tex = (IDirect3DTexture9*)it->second;
@@ -793,19 +842,15 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     uint32_t cb = (uint32_t)(std::clamp(bgB, 0.0f, 1.0f) * 255.0f);
     uint32_t colorGL = (ca << 24) | (cb << 16) | (cg << 8) | cr;
 
-    GLVertex v[4] = {
-        { 0.0f,       0.0f,       colorGL, uvOffsetX,       uvOffsetY },
-        { _logicalW,  0.0f,       colorGL, uvOffsetX + uvW, uvOffsetY },
-        { _logicalW,  _logicalH,  colorGL, uvOffsetX + uvW, uvOffsetY + uvH },
-        { 0.0f,       _logicalH,  colorGL, uvOffsetX,       uvOffsetY + uvH }
-    };
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+    _batchBuffer.gl[0] = { 0.0f,       0.0f,       colorGL, uvOffsetX,       uvOffsetY };
+    _batchBuffer.gl[1] = { _logicalW,  0.0f,       colorGL, uvOffsetX + uvW, uvOffsetY };
+    _batchBuffer.gl[2] = { _logicalW,  _logicalH,  colorGL, uvOffsetX + uvW, uvOffsetY + uvH };
+    _batchBuffer.gl[3] = { 0.0f,       _logicalH,  colorGL, uvOffsetX,       uvOffsetY + uvH };
 
-    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &v[0].x);
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &v[0].color);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &v[0].u);
+    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
+    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
+    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
+
     glDrawArrays(GL_QUADS, 0, 4);
     glEnable(GL_BLEND);
 }

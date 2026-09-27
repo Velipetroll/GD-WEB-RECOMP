@@ -56,6 +56,19 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
     if (flipX) std::swap(u0, u1);
     if (flipY) std::swap(v0, v1);
 
+    if (rotation == 0.0f) {
+        float halfW = w * 0.5f;
+        float halfH = h * 0.5f;
+        RenderDevice::get().batchAxisAlignedQuad(
+            texID,
+            x - halfW, y - halfH,
+            x + halfW, y + halfH,
+            u0, v0, u1, v1,
+            r, g, b, a, blend
+        );
+        return;
+    }
+
     float halfW = w * 0.5f;
     float halfH = h * 0.5f;
 
@@ -227,9 +240,12 @@ LayeredSprite addImageFromAtlas(float x, float y, const std::string& frameName) 
 void drawAtlasFrame(const std::string& frameName, float x, float y,
                     float w, float h, float rotation,
                     float r, float g, float b, float a,
-                    bool flipX, bool flipY)
+                    bool flipX, bool flipY,
+                    BlendMode blend)
 {
-    const AtlasFrame* frame = findAtlasFrame(frameName);
+    const AtlasFrame* frame = (AtlasManager::squareFrame && (frameName == "square.png" || frameName == "square"))
+                              ? AtlasManager::squareFrame
+                              : findAtlasFrame(frameName);
     uint32_t texID = 0;
     float drawW = w;
     float drawH = h;
@@ -270,8 +286,7 @@ void drawAtlasFrame(const std::string& frameName, float x, float y,
         }
     }
 
-    BlendMode curBlend = RenderDevice::get().getBlendMode();
-    batchAtlasFrame(texID, frame, x, y, drawW, drawH, rotation, r, g, b, a, flipX, flipY, curBlend);
+    batchAtlasFrame(texID, frame, x, y, drawW, drawH, rotation, r, g, b, a, flipX, flipY, blend);
 }
 
 void drawScale9(const std::string& textureKey, float x, float y, float w, float h, float cornerSize,
@@ -357,12 +372,12 @@ void drawScale9(const std::string& textureKey, float x, float y, float w, float 
     BlendMode curBlend = RenderDevice::get().getBlendMode();
     for (int row = 0; row < 3; ++row) {
         for (int col = 0; col < 3; ++col) {
-            RenderDevice::get().batchQuad(
+            RenderDevice::get().batchAxisAlignedQuad(
                 texID,
-                px[col],     py[row],     pu[col],     pv[row],
-                px[col + 1], py[row],     pu[col + 1], pv[row],
-                px[col + 1], py[row + 1], pu[col + 1], pv[row + 1],
-                px[col],     py[row + 1], pu[col],     pv[row + 1],
+                px[col],     py[row],
+                px[col + 1], py[row + 1],
+                pu[col],     pv[row],
+                pu[col + 1], pv[row + 1],
                 r, g, b, a, curBlend
             );
         }

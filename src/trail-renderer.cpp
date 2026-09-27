@@ -87,7 +87,8 @@ void TrailRenderer::update(float dt) {
 }
 
 void TrailRenderer::render(float cameraX, float cameraY) {
-    if (_pts.size() < 2) return;
+    size_t count = _pts.size();
+    if (count < 2) return;
 
     float r = ((_color >> 16) & 0xFF) / 255.0f;
     float g = ((_color >> 8)  & 0xFF) / 255.0f;
@@ -96,17 +97,16 @@ void TrailRenderer::render(float cameraX, float cameraY) {
     RenderDevice::get().pushMatrix();
     RenderDevice::get().translate(-cameraX, cameraY);
 
-    _coordsBuffer.clear();
-    _colorsBuffer.clear();
-    _coordsBuffer.reserve(_pts.size() * 4);
-    _colorsBuffer.reserve(_pts.size() * 8);
+    float hw = _stroke * 0.5f;
 
-    for (size_t i = 0; i < _pts.size(); ++i) {
+    struct EdgePt { float lx, ly, rx, ry; };
+    EdgePt edgeBuf[128];
+    EdgePt* edges = (count <= 128) ? edgeBuf : new EdgePt[count];
+
+    for (size_t i = 0; i < count; ++i) {
         const auto& p = _pts[i];
-        float alpha = p.state * _opacity;
-
         float nx = 0.0f, ny = 1.0f;
-        if (i + 1 < _pts.size()) {
+        if (i + 1 < count) {
             float dx = _pts[i+1].x - p.x;
             float dy = _pts[i+1].y - p.y;
             float len = std::sqrt(dx*dx + dy*dy);
@@ -118,17 +118,27 @@ void TrailRenderer::render(float cameraX, float cameraY) {
             if (len > 0.0001f) { nx = -dy / len; ny = dx / len; }
         }
 
-        float hw = _stroke * 0.5f;
-        _coordsBuffer.push_back(p.x + nx * hw);
-        _coordsBuffer.push_back(p.y + ny * hw);
-        _colorsBuffer.push_back(r); _colorsBuffer.push_back(g); _colorsBuffer.push_back(b); _colorsBuffer.push_back(alpha);
-
-        _coordsBuffer.push_back(p.x - nx * hw);
-        _coordsBuffer.push_back(p.y - ny * hw);
-        _colorsBuffer.push_back(r); _colorsBuffer.push_back(g); _colorsBuffer.push_back(b); _colorsBuffer.push_back(alpha);
+        edges[i].lx = p.x + nx * hw;
+        edges[i].ly = p.y + ny * hw;
+        edges[i].rx = p.x - nx * hw;
+        edges[i].ry = p.y - ny * hw;
     }
 
-    RenderDevice::get().drawTriangleStrip(_coordsBuffer.data(), _colorsBuffer.data(), _pts.size() * 2, BLEND_ADD);
-    applyBlendMode(BLEND_NORMAL);
+    for (size_t i = 0; i + 1 < count; ++i) {
+        float alpha = (_pts[i].state + _pts[i+1].state) * 0.5f * _opacity;
+        if (alpha <= 0.001f) continue;
+
+        RenderDevice::get().batchQuad(
+            0,
+            edges[i].lx,   edges[i].ly,   0.0f, 0.0f,
+            edges[i+1].lx, edges[i+1].ly, 1.0f, 0.0f,
+            edges[i+1].rx, edges[i+1].ry, 1.0f, 1.0f,
+            edges[i].rx,   edges[i].ry,   0.0f, 1.0f,
+            r, g, b, alpha, BLEND_ADD
+        );
+    }
+
+    if (edges != edgeBuf) delete[] edges;
+
     RenderDevice::get().popMatrix();
 }

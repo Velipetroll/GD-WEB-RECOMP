@@ -16,7 +16,9 @@
 #include "settings.h"
 
 struct MenuGlitter {
-    float x, y, life, maxLife, scale;
+    float rx = 0.0f, ry = 0.0f;
+    float life = 0.0f, maxLife = 1.0f;
+    float scale = 0.5f;
 };
 
 struct CompleteLightRay {

@@ -665,16 +665,14 @@ void Player::_updateDust(float dt) {
 
 void Player::_renderDust(float cameraX, float cameraY) {
     if (_dustParticles.empty()) return;
-    applyBlendMode(BLEND_ADD);
     for (const auto& dp : _dustParticles) {
         float t = std::min(dp.life / dp.maxLife, 1.0f);
         float scale = dp.startScale + (dp.endScale - dp.startScale) * t;
         float alpha = 1.0f - t;
         float size = 20.0f * scale;
 
-        drawAtlasFrame("square.png", dp.x - cameraX, dp.y + cameraY, size, size, 0.0f, dp.r, dp.g, dp.b, alpha);
+        drawAtlasFrame("square.png", dp.x - cameraX, dp.y + cameraY, size, size, 0.0f, dp.r, dp.g, dp.b, alpha, false, false, BLEND_ADD);
     }
-    applyBlendMode(BLEND_NORMAL);
 }
 
 void Player::_updateShipParticles(float dt, float playerWorldX) {
@@ -800,8 +798,6 @@ void Player::_updateShipParticles(float dt, float playerWorldX) {
 void Player::_renderShipParticles(float cameraX, float cameraY) {
     if (_shipFlames.empty() && _shipDrags.empty()) return;
 
-    applyBlendMode(BLEND_ADD);
-
     for (const auto& fp : _shipFlames) {
         float t = std::min(fp.life / fp.maxLife, 1.0f);
         float sc = fp.startScale + (fp.endScale - fp.startScale) * t;
@@ -811,7 +807,7 @@ void Player::_renderShipParticles(float cameraX, float cameraY) {
         float b = fp.b1 + (fp.b2 - fp.b1) * t;
         float size = 20.0f * sc;
 
-        drawAtlasFrame("square.png", fp.x - cameraX, fp.y + cameraY, size, size, 0.0f, r, g, b, alpha);
+        drawAtlasFrame("square.png", fp.x - cameraX, fp.y + cameraY, size, size, 0.0f, r, g, b, alpha, false, false, BLEND_ADD);
     }
 
     for (const auto& dp : _shipDrags) {
@@ -820,10 +816,8 @@ void Player::_renderShipParticles(float cameraX, float cameraY) {
         float alpha = 1.0f - t;
         float size = 20.0f * sc;
 
-        drawAtlasFrame("square.png", dp.x - cameraX, dp.y + cameraY, size, size, 0.0f, 1.0f, 0.95f, 0.6f, alpha);
+        drawAtlasFrame("square.png", dp.x - cameraX, dp.y + cameraY, size, size, 0.0f, 1.0f, 0.95f, 0.6f, alpha, false, false, BLEND_ADD);
     }
-
-    applyBlendMode(BLEND_NORMAL);
 }
 
 void Player::playEndAnimation(float targetX, std::function<void()> onComplete, float targetY) {
@@ -1024,17 +1018,15 @@ void Player::render(float cameraX, float cameraY) {
 
     if (_isExploding) {
         if (_shockwaveAlpha > 0.0f) {
-            RenderDevice::get().drawCircle(_deathScreenX, _deathScreenY, _shockwaveRadius, 0.0f, 1.0f, 0.0f, _shockwaveAlpha, 32, BLEND_ADD);
+            RenderDevice::get().drawCircle(_deathScreenX, _deathScreenY, _shockwaveRadius, 0.0f, 1.0f, 0.0f, _shockwaveAlpha, true, BLEND_ADD);
         }
-
-        applyBlendMode(BLEND_ADD);
 
         for (const auto& tp : _pieceTrails) {
             float pt = tp.life / tp.maxLife;
             float scale = tp.scale * (1.0f - pt);
             float alpha = 1.0f - pt;
             float size = 20.0f * scale;
-            drawAtlasFrame("square.png", tp.x, tp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha);
+            drawAtlasFrame("square.png", tp.x, tp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
         }
 
         for (const auto& dp : _deathParticles) {
@@ -1044,10 +1036,9 @@ void Player::render(float cameraX, float cameraY) {
                 float alpha = 1.0f - pt;
                 float size = 20.0f * scale;
 
-                drawAtlasFrame("square.png", dp.x, dp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha);
+                drawAtlasFrame("square.png", dp.x, dp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
             }
         }
-        applyBlendMode(BLEND_NORMAL);
 
         uint32_t atlas = BootScene::textures["GJ_WebSheet"].id;
 
@@ -1081,7 +1072,6 @@ void Player::render(float cameraX, float cameraY) {
                 );
             }
         }
-        RenderDevice::get().flushBatch();
         return;
     }
 

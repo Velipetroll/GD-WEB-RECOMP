@@ -34,8 +34,6 @@ private:
     float _stroke;
 
     std::vector<TrailPoint> _pts;
-    std::vector<float> _coordsBuffer;
-    std::vector<float> _colorsBuffer;
     float _posX = 0.0f;
     float _posY = 0.0f;
     bool _posInit = false;
