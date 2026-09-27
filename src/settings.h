@@ -30,6 +30,7 @@ public:
     float sfxVolume = 1.0f;
     int fpsIndex = 8; // Default: 240 FPS
     bool fullscreen = false;
+    bool showFps = false;
 
     std::vector<FpsOption> fpsOptions = {
         { "VSync",      0,   true  }, // 0
@@ -154,6 +155,7 @@ public:
                 else if (key == "sfxVolume") sfxVolume = std::stof(val);
                 else if (key == "fpsIndex") fpsIndex = std::stoi(val);
                 else if (key == "fullscreen") fullscreen = (val == "1" || val == "true");
+                else if (key == "showFps") showFps = (val == "1" || val == "true");
                 #if defined(_WIN32)
                 else if (key == "rendererBackend" || key == "renderer") {
                     int b = std::stoi(val);
@@ -184,6 +186,7 @@ public:
         file << "sfxVolume=" << sfxVolume << "\n";
         file << "fpsIndex=" << fpsIndex << "\n";
         file << "fullscreen=" << (fullscreen ? "1" : "0") << "\n";
+        file << "showFps=" << (showFps ? "1" : "0") << "\n";
         #if defined(_WIN32)
         if (!rendererOptions.empty()) {
             file << "rendererBackend=" << (int)currentBackend() << "\n";

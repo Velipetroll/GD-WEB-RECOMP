@@ -13,7 +13,6 @@
 #include <cmath>
 
 static constexpr bool DEBUG_SPAWN_AT_END = 0;
-static constexpr bool SHOW_FPS = 0;
 
 static void openURL(const std::string& url) {
     SDL_OpenURL(url.c_str());
@@ -129,15 +128,19 @@ void GameScene::init() {
     _btnAnims[BTN_SETTINGS_RENDER_PREV].init(1.0f);
     _btnAnims[BTN_SETTINGS_RENDER_NEXT].init(1.0f);
     _btnAnims[BTN_SETTINGS_RENDER_BOX].init(1.0f);
+    _btnAnims[BTN_SETTINGS_SHOW_FPS_PREV].init(1.0f);
+    _btnAnims[BTN_SETTINGS_SHOW_FPS_NEXT].init(1.0f);
+    _btnAnims[BTN_SETTINGS_SHOW_FPS_BOX].init(1.0f);
 
     _pauseBtnVisible = false;
     _pauseBtnAlpha = 0.0f;
     _pauseBtnFading = false;
 
-    if (SHOW_FPS) {
+    if (Settings::get().showFps) {
         _lastFpsUpdateTick = SDL_GetTicks();
         _fpsFrameCount = 0;
         _fpsText = "60 FPS";
+        _fpsDisplayText = std::string("60 FPS - ") + RenderDevice::get().getBackendName();
     }
 }
 
@@ -390,7 +393,7 @@ ButtonId GameScene::_checkButtonHit(float vx, float vy) {
 
         #if defined(_WIN32)
         if (!Settings::get().rendererOptions.empty()) {
-            float rendY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
+            float rendY = 320.0f - (popupH * 0.5f) + 172.0f * guiScale;
             HitBox prevBox = { midX - 115.0f * guiScale, rendY, 24.0f * guiScale, 22.0f * guiScale };
             if (prevBox.contains(vx, vy)) return BTN_SETTINGS_RENDER_PREV;
 
@@ -400,7 +403,20 @@ ButtonId GameScene::_checkButtonHit(float vx, float vy) {
             HitBox boxHit = { midX, rendY, 85.0f * guiScale, 18.0f * guiScale };
             if (boxHit.contains(vx, vy)) return BTN_SETTINGS_RENDER_BOX;
         }
+        float showFpsY = 320.0f - (popupH * 0.5f) + 252.0f * guiScale;
+        #else
+        float showFpsY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
         #endif
+
+        HitBox prevFpsBox = { midX - 85.0f * guiScale, showFpsY, 26.0f * guiScale, 24.0f * guiScale };
+        if (prevFpsBox.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_PREV;
+
+        HitBox nextFpsBox = { midX + 85.0f * guiScale, showFpsY, 26.0f * guiScale, 24.0f * guiScale };
+        if (nextFpsBox.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_NEXT;
+
+        HitBox boxFpsHit = { midX, showFpsY, 120.0f * guiScale, 24.0f * guiScale };
+        if (boxFpsHit.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_BOX;
+
         return BTN_COUNT;
     }
 
@@ -735,6 +751,19 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
                             Settings::get().nextRenderer();
                             break;
                             #endif
+                        case BTN_SETTINGS_SHOW_FPS_PREV:
+                        case BTN_SETTINGS_SHOW_FPS_NEXT:
+                        case BTN_SETTINGS_SHOW_FPS_BOX:
+                            Settings::get().showFps = !Settings::get().showFps;
+                            Settings::get().save();
+                            if (Settings::get().showFps) {
+                                _lastFpsUpdateTick = SDL_GetTicks();
+                                _fpsFrameCount = 0;
+                                _fpsText = "60 FPS";
+                                _fpsDisplayText = std::string("60 FPS - ") + RenderDevice::get().getBackendName();
+                                _cachedFpsGlyphs.clear();
+                            }
+                            break;
                         case BTN_MENU_FS:
                         case BTN_PAUSE_FS:
                             toggleFullscreen(window);
@@ -904,16 +933,17 @@ static std::vector<FlightGlitter> _flightGlitters;
 static float _flightGlitterTimer = 0.0f;
 
 void GameScene::update(float dt) {
-    if (SHOW_FPS) {
+    if (Settings::get().showFps) {
         _fpsFrameCount++;
         Uint32 nowTick = SDL_GetTicks();
+        if (_lastFpsUpdateTick == 0) _lastFpsUpdateTick = nowTick;
         if (nowTick - _lastFpsUpdateTick >= 250) {
             int fps = (int)std::round((_fpsFrameCount * 1000.0f) / (float)(nowTick - _lastFpsUpdateTick));
             _fpsText = std::to_string(fps) + " FPS";
             _fpsDisplayText = _fpsText + " - " + RenderDevice::get().getBackendName();
             _fpsFrameCount = 0;
             _lastFpsUpdateTick = nowTick;
-            float fpsY = (_menuActive || _paused) ? 62.0f : 12.0f;
+            float fpsY = (_menuActive || _paused) ? (62.0f * getGuiScale()) : 12.0f;
             _updateFpsGlyphs(fpsY);
         }
     }
@@ -1513,7 +1543,7 @@ void GameScene::render() {
         _renderSettingsPopup();
     }
 
-    if (SHOW_FPS) {
+    if (Settings::get().showFps) {
         float fpsY = (_menuActive || _paused) ? (62.0f * getGuiScale()) : 12.0f;
         if (_cachedFpsGlyphs.empty() || _cachedFpsY != fpsY) {
             _updateFpsGlyphs(fpsY);
@@ -1890,14 +1920,14 @@ void GameScene::_renderSettingsPopup() {
 
     // 1. FPS Limiter
     float fpsProgress = (float)Settings::get().fpsIndex / (float)(Settings::get().fpsOptions.size() - 1);
-    float fpsY = 320.0f - (popupH * 0.5f) + 114.0f * guiScale;
+    float fpsY = 320.0f - (popupH * 0.5f) + 104.0f * guiScale;
     _renderSlider(midX, fpsY, fpsProgress, _draggingFpsSlider,
                   "", "FPS", Settings::get().currentFps().label);
 
     // 2. Graphics Renderer Selector (Windows only)
     #if defined(_WIN32)
     if (!Settings::get().rendererOptions.empty()) {
-        float rendY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
+        float rendY = 320.0f - (popupH * 0.5f) + 172.0f * guiScale;
         drawBitmapText("goldFont", "Renderer", midX, rendY - 26.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
 
         float prevScale = _btnAnims[BTN_SETTINGS_RENDER_PREV].scale * guiScale;
@@ -1913,7 +1943,27 @@ void GameScene::_renderSettingsPopup() {
             drawBitmapText("goldFont", "(Restart game to apply)", midX, rendY + 28.0f * guiScale, 0.38f * guiScale, 1.0f, 0.45f, 0.35f, 1.0f, true);
         }
     }
+    float showFpsY = 320.0f - (popupH * 0.5f) + 252.0f * guiScale;
+    #else
+    float showFpsY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
     #endif
+
+    // 3. Show FPS Toggle
+    drawBitmapText("goldFont", "Show FPS", midX, showFpsY - 24.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
+
+    float prevFpsScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_PREV].scale * guiScale;
+    float nextFpsScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_NEXT].scale * guiScale;
+    drawBitmapText("bigFont", "<", midX - 85.0f * guiScale, showFpsY, 0.60f * prevFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+    drawBitmapText("bigFont", ">", midX + 85.0f * guiScale, showFpsY, 0.60f * nextFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+
+    bool isFpsOn = Settings::get().showFps;
+    std::string fpsToggleLabel = isFpsOn ? "Enabled" : "Disabled";
+    float fr = isFpsOn ? 0.35f : 0.85f;
+    float fg = isFpsOn ? 1.0f : 0.40f;
+    float fb = isFpsOn ? 0.35f : 0.40f;
+
+    float fpsBoxScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_BOX].scale * guiScale;
+    drawBitmapText("bigFont", fpsToggleLabel, midX, showFpsY + 3.0f * guiScale, 0.50f * fpsBoxScale, fr, fg, fb, 1.0f, true);
 }
 
 // -------------------------------------------------------------
