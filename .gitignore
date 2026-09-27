@@ -1,6 +1,8 @@
 # Build artifacts & binaries
 build/
 bin/
+dist/
+release/
 obj/
 *.o
 *.d
