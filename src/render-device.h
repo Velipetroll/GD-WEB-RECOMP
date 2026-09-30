@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
+#include <cstddef>
 #include <SDL2/SDL.h>
 #include "constants.h"
 
@@ -25,6 +26,32 @@ struct GLVertex {
     uint32_t color;     // 4 bytes: 0xAABBGGRR (GL_UNSIGNED_BYTE little-endian RGBA)
     float u, v;         // 8 bytes: texture coordinates
 };
+
+
+// Lossless texture-format analysis (shared by the GL, D3D8 and D3D9 back-ends).
+// Returns a bitmask for tightly packed RGBA8 pixels (byte order R,G,B,A):
+//   bit 0 -> every texel has RGB == (255,255,255): only alpha carries information
+//   bit 1 -> every texel has R == G == B: luminance + alpha
+//   bit 2 -> bit 1 and every texel is fully opaque: pure luminance (e.g. a grayscale background tinted by vertex color)
+// These can be stored in 8/16 bits per texel (GL_LUMINANCE / GL_ALPHA / GL_LUMINANCE_ALPHA, D3DFMT_L8 / D3DFMT_A8L8)
+// with a bit-exact sampling result, cutting texture fetch traffic by 2x-4x.
+// The RGB of fully transparent texels is deliberately part of the test so that bilinear
+// filtering at sprite borders stays identical to the RGBA8 path.
+enum : int { TEXKIND_WHITE_ALPHA = 1, TEXKIND_GRAY_ALPHA = 2, TEXKIND_GRAY_OPAQUE = 4 };
+
+inline int classifyRGBA(const void* pixels, size_t count) {
+    const uint32_t* p = static_cast<const uint32_t*>(pixels);
+    bool white = true, gray = true, opaque = true;
+    for (size_t i = 0; i < count && gray; ++i) {
+        uint32_t c = p[i];
+        uint32_t r = c & 0xFFu, g = (c >> 8) & 0xFFu, b = (c >> 16) & 0xFFu;
+        if (r != g || g != b) { gray = false; white = false; opaque = false; break; }
+        if (r != 0xFFu) white = false;
+        if ((c >> 24) != 0xFFu) opaque = false;
+    }
+    if (count == 0) return 0;
+    return (white ? TEXKIND_WHITE_ALPHA : 0) | (gray ? TEXKIND_GRAY_ALPHA : 0) | ((gray && opaque) ? TEXKIND_GRAY_OPAQUE : 0);
+}
 
 class RenderDevice {
 public:
@@ -96,13 +123,13 @@ private:
     ~RenderDevice();
 
     bool _initOpenGL();
-#ifdef _WIN32
+    #ifdef _WIN32
     bool _initD3D9();
     void _createD3D9WhiteTexture();
     void _createD3D9BatchBuffers();
     void _applyD3D9RenderStates();
     void _onResizeD3D9(int newW, int newH);
-#endif
+    #endif
 
     SDL_Window* _window = nullptr;
     SDL_GLContext _glContext = nullptr;
@@ -119,7 +146,8 @@ private:
     BlendMode _currentBlend = BLEND_NORMAL;
     uint32_t _currentTexID = 0;
 
-    static constexpr size_t MAX_BATCH_QUADS = 4096;
+    // 1024 quads * 4 verts * 28 B = 112 KB (was 448 KB): the staging buffer stays cache-resident
+    static constexpr size_t MAX_BATCH_QUADS = 1024;
     static constexpr size_t MAX_BATCH_VERTS = MAX_BATCH_QUADS * 4;
     union {
         D3DVertex d3d[MAX_BATCH_VERTS];
@@ -130,7 +158,7 @@ private:
     GLuint _glWhiteTex = 0;
     GLuint _lastGLTex = 0;
 
-#ifdef _WIN32
+    #ifdef _WIN32
     // Direct3D 9 members with dynamic ring buffer and texture cache
     static constexpr size_t D3D9_RING_VERTS = 32768; // 8192 quads
     size_t _d3d9VbOffset = 0;
@@ -144,7 +172,10 @@ private:
     uint8_t _d3dpp9[128] = { 0 }; // Opaque buffer for D3DPRESENT_PARAMETERS of D3D9
     std::unordered_map<uint32_t, void*> _d3d9Textures;
     bool _inScene = false;
-#endif
+    bool _d3d9Bound = false;      // FVF / stream 0 / index buffer already bound
+    bool _d3d9CanA8L8 = false;    // device can sample D3DFMT_A8L8 (lossless 16-bit mask textures)
+    bool _d3d9CanL8 = false;      // device can sample D3DFMT_L8 (lossless 8-bit opaque gray textures)
+    #endif
 
     std::unordered_map<std::string, uint32_t> _textureRegistry;
     uint32_t _nextTexHandle = 1;

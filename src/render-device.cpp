@@ -63,9 +63,9 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
     _vpW = windowW;
     _vpH = windowH;
 
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
-#if !defined(_WIN64)
+        #if !defined(_WIN64)
         if (!d3d8_init(window, windowW, windowH, _vsync)) {
             std::cerr << "[RenderDevice] Direct3D 8 failed. Trying Direct3D 9...\n";
             _backend = RENDERER_D3D9;
@@ -73,10 +73,10 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
             setViewport(0, 0, windowW, windowH, (float)screenWidth, (float)screenHeight);
             return true;
         }
-#else
+        #else
         std::cerr << "[RenderDevice] Direct3D 8 does not exist in 64-bit mode. Switching to Direct3D 9...\n";
         _backend = RENDERER_D3D9;
-#endif
+        #endif
     }
 
     if (_backend == RENDERER_D3D9) {
@@ -88,9 +88,9 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
             return true;
         }
     }
-#else
+    #else
     _backend = RENDERER_OPENGL;
-#endif
+    #endif
 
     if (_backend == RENDERER_OPENGL) {
         if (!_initOpenGL()) return false;
@@ -176,6 +176,11 @@ bool RenderDevice::_initD3D9() {
     }
     _d3d9Device = (void*)dev;
 
+    _d3d9CanA8L8 = SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp->BackBufferFormat,
+                                                    0, D3DRTYPE_TEXTURE, D3DFMT_A8L8));
+    _d3d9CanL8   = SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp->BackBufferFormat,
+                                                    0, D3DRTYPE_TEXTURE, D3DFMT_L8));
+
     _applyD3D9RenderStates();
     _createD3D9WhiteTexture();
     _createD3D9BatchBuffers();
@@ -223,6 +228,7 @@ void RenderDevice::_onResizeD3D9(int newW, int newH) {
     flushBatch();
 
     if (_d3d9VB) { ((IDirect3DVertexBuffer9*)_d3d9VB)->Release(); _d3d9VB = nullptr; }
+    _d3d9Bound = false;
     auto* d3dpp = (D3DPRESENT_PARAMETERS*)_d3dpp9;
     d3dpp->BackBufferWidth = newW;
     d3dpp->BackBufferHeight = newH;
@@ -256,6 +262,7 @@ void RenderDevice::_createD3D9BatchBuffers() {
     auto* dev = (IDirect3DDevice9*)_d3d9Device;
     if (!dev) return;
     _d3d9VbOffset = 0;
+    _d3d9Bound = false;
 
     if (!_d3d9VB) {
         IDirect3DVertexBuffer9* vb = nullptr;
@@ -283,7 +290,7 @@ void RenderDevice::_createD3D9BatchBuffers() {
 
 void RenderDevice::shutdown() {
     flushBatch();
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_shutdown();
     }
@@ -295,7 +302,7 @@ void RenderDevice::shutdown() {
     if (_d3d9Device) { ((IDirect3DDevice9*)_d3d9Device)->Release(); _d3d9Device = nullptr; }
     if (_d3d9) { ((IDirect3D9*)_d3d9)->Release(); _d3d9 = nullptr; }
     if (_hD3D9Module) { FreeLibrary((HMODULE)_hD3D9Module); _hD3D9Module = nullptr; }
-#endif
+    #endif
 
     if (_glWhiteTex) {
         glDeleteTextures(1, &_glWhiteTex);
@@ -315,7 +322,7 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
     _scaleX = (logicalW > 0.0f) ? ((float)vpW / logicalW) : 1.0f;
     _scaleY = (logicalH > 0.0f) ? ((float)vpH / logicalH) : 1.0f;
 
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_setViewport(vpX, vpY, vpW, vpH);
         return;
@@ -330,7 +337,7 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
         ((IDirect3DDevice9*)_d3d9Device)->SetViewport(&vp);
         return;
     }
-#endif
+    #endif
 
     glViewport(vpX, vpY, vpW, vpH);
     glMatrixMode(GL_PROJECTION);
@@ -342,7 +349,7 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
 
 void RenderDevice::setVSync(bool enabled) {
     _vsync = enabled;
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_setVSync(enabled);
         return;
@@ -356,23 +363,23 @@ void RenderDevice::setVSync(bool enabled) {
         }
         return;
     }
-#endif
+    #endif
     SDL_GL_SetSwapInterval(enabled ? 1 : 0);
 }
 
 void RenderDevice::beginFrame() {
     _transX = 0.0f; _transY = 0.0f;
     _matrixStack.clear();
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_beginFrame(); return; }
     if (_backend == RENDERER_D3D9) { _inScene = false; return; }
-#endif
+    #endif
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 }
 
 void RenderDevice::clear(float r, float g, float b, float a) {
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_clear(r, g, b, a); return; }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
         auto* dev = (IDirect3DDevice9*)_d3d9Device;
@@ -381,14 +388,14 @@ void RenderDevice::clear(float r, float g, float b, float a) {
         _inScene = true;
         return;
     }
-#endif
+    #endif
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 
 void RenderDevice::endFrame() {
     flushBatch();
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_endFrame(); return; }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
         auto* dev = (IDirect3DDevice9*)_d3d9Device;
@@ -396,7 +403,7 @@ void RenderDevice::endFrame() {
         dev->Present(NULL, NULL, NULL, NULL);
         return;
     }
-#endif
+    #endif
     SDL_GL_SwapWindow(_window);
 }
 
@@ -404,13 +411,13 @@ void RenderDevice::setBlendMode(BlendMode mode) {
     if (_currentBlend == mode) return;
     flushBatch();
     _currentBlend = mode;
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_setBlendMode(mode); return; }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
         ((IDirect3DDevice9*)_d3d9Device)->SetRenderState(D3DRS_DESTBLEND, (mode == BLEND_ADD) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
         return;
     }
-#endif
+    #endif
     if (mode == BLEND_ADD) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     else glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
@@ -423,7 +430,7 @@ void RenderDevice::beginBatch() {
 void RenderDevice::flushBatch() {
     if (_batchVertCount == 0) return;
 
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_flushBatch(_batchBuffer.d3d, _batchVertCount, _currentTexID, _currentBlend);
         _batchVertCount = 0;
@@ -454,7 +461,6 @@ void RenderDevice::flushBatch() {
             lockFlags = D3DLOCK_DISCARD;
         }
 
-        dev->SetFVF(D3DFVF_D3D9_2D);
         D3DVertex* pLock = nullptr;
         auto* vb = (IDirect3DVertexBuffer9*)_d3d9VB;
         if (SUCCEEDED(vb->Lock(_d3d9VbOffset * sizeof(D3DVertex), _batchVertCount * sizeof(D3DVertex), (void**)&pLock, lockFlags))) {
@@ -462,8 +468,13 @@ void RenderDevice::flushBatch() {
             memcpy(pLock, _batchBuffer.d3d, _batchVertCount * sizeof(D3DVertex));
             vb->Unlock();
 
-            dev->SetStreamSource(0, vb, 0, sizeof(D3DVertex));
-            dev->SetIndices((IDirect3DIndexBuffer9*)_d3d9IB);
+            // FVF / stream 0 / index buffer never change between batches: bind them once
+            if (!_d3d9Bound) {
+                dev->SetFVF(D3DFVF_D3D9_2D);
+                dev->SetStreamSource(0, vb, 0, sizeof(D3DVertex));
+                dev->SetIndices((IDirect3DIndexBuffer9*)_d3d9IB);
+                _d3d9Bound = true;
+            }
             UINT numPrimitives = (UINT)(_batchVertCount / 4) * 2;
             dev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, (INT)_d3d9VbOffset, 0, _batchVertCount, 0, numPrimitives);
             _d3d9VbOffset += _batchVertCount;
@@ -471,7 +482,7 @@ void RenderDevice::flushBatch() {
         _batchVertCount = 0;
         return;
     }
-#endif
+    #endif
 
     if (_currentBlend == BLEND_ADD) glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     else glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -497,7 +508,7 @@ static inline uint32_t fastPackColor(float r, float g, float b, float a, bool is
     uint32_t cg = (uint32_t)(g <= 0.0f ? 0 : (g >= 1.0f ? 255 : (int)(g * 255.0f)));
     uint32_t cb = (uint32_t)(b <= 0.0f ? 0 : (b >= 1.0f ? 255 : (int)(b * 255.0f)));
     return isOpenGL ? ((ca << 24) | (cb << 16) | (cg << 8) | cr)
-                    : ((ca << 24) | (cr << 16) | (cg << 8) | cb);
+    : ((ca << 24) | (cr << 16) | (cg << 8) | cb);
 }
 
 void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float v0,
@@ -509,7 +520,16 @@ void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float
     if (_batchVertCount + 4 > MAX_BATCH_VERTS || texID != _currentTexID || blend != _currentBlend) {
         flushBatch();
         _currentTexID = texID;
-        _currentBlend = blend;
+        if (blend != _currentBlend) {
+            _currentBlend = blend;
+            #ifdef _WIN32
+            // Keep D3D9 hardware state in sync when blend changes implicitly (not via setBlendMode)
+            if (_backend == RENDERER_D3D9 && _d3d9Device) {
+                ((IDirect3DDevice9*)_d3d9Device)->SetRenderState(D3DRS_DESTBLEND,
+                                                                 (blend == BLEND_ADD) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
+            }
+            #endif
+        }
     }
 
     uint32_t packedColor = fastPackColor(r, g, b, a, _backend == RENDERER_OPENGL);
@@ -547,13 +567,22 @@ void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float
 }
 
 void RenderDevice::batchAxisAlignedQuad(uint32_t texID, float x0, float y0, float x1, float y1,
-                                       float u0, float v0, float u1, float v1,
-                                       float r, float g, float b, float a, BlendMode blend)
+                                        float u0, float v0, float u1, float v1,
+                                        float r, float g, float b, float a, BlendMode blend)
 {
     if (_batchVertCount + 4 > MAX_BATCH_VERTS || texID != _currentTexID || blend != _currentBlend) {
         flushBatch();
         _currentTexID = texID;
-        _currentBlend = blend;
+        if (blend != _currentBlend) {
+            _currentBlend = blend;
+            #ifdef _WIN32
+            // Keep D3D9 hardware state in sync when blend changes implicitly (not via setBlendMode)
+            if (_backend == RENDERER_D3D9 && _d3d9Device) {
+                ((IDirect3DDevice9*)_d3d9Device)->SetRenderState(D3DRS_DESTBLEND,
+                                                                 (blend == BLEND_ADD) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
+            }
+            #endif
+        }
     }
 
     uint32_t packedColor = fastPackColor(r, g, b, a, _backend == RENDERER_OPENGL);
@@ -590,7 +619,7 @@ void RenderDevice::drawColorQuad(float x0, float y0, float x1, float y1, float x
 
 void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g, float b, float a, bool filled, BlendMode blend) {
     flushBatch();
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawCircle(cx, cy, radius, r, g, b, a, filled, blend, _transX, _transY, _scaleX, _scaleY);
         return;
@@ -622,8 +651,8 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
                 for (int i = 0; i <= segments; ++i) {
                     float ang = (i / (float)segments) * 6.2831853f;
                     pLock[i + 1] = { (cx + _transX + std::cos(ang) * radius) * _scaleX,
-                                     (cy + _transY + std::sin(ang) * radius) * _scaleY,
-                                     0.5f, 1.0f, color, 0.5f, 0.5f };
+                        (cy + _transY + std::sin(ang) * radius) * _scaleY,
+                        0.5f, 1.0f, color, 0.5f, 0.5f };
                 }
                 vb->Unlock();
 
@@ -633,8 +662,8 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
                 for (int i = 0; i <= segments; ++i) {
                     float ang = (i / (float)segments) * 6.2831853f;
                     pLock[i] = { (cx + _transX + std::cos(ang) * radius) * _scaleX,
-                                 (cy + _transY + std::sin(ang) * radius) * _scaleY,
-                                 0.5f, 1.0f, color, 0.5f, 0.5f };
+                        (cy + _transY + std::sin(ang) * radius) * _scaleY,
+                        0.5f, 1.0f, color, 0.5f, 0.5f };
                 }
                 vb->Unlock();
 
@@ -645,7 +674,7 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
         }
         return;
     }
-#endif
+    #endif
 
     glDisable(GL_TEXTURE_2D);
     setBlendMode(blend);
@@ -689,7 +718,7 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
 void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, BlendMode blend) {
     if (vertCount < 3) return;
     flushBatch();
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, blend, _transX, _transY, _scaleX, _scaleY);
         return;
@@ -727,7 +756,7 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
         }
         return;
     }
-#endif
+    #endif
 
     glDisable(GL_TEXTURE_2D);
     setBlendMode(blend);
@@ -770,7 +799,7 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
         }
     }
 
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawRepeatedBackground(actualTexID, uvOffsetX, uvOffsetY, uvW, uvH, _logicalW, _logicalH, bgR, bgG, bgB, _scaleX, _scaleY);
         return;
@@ -787,6 +816,7 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
         if (it != _d3d9Textures.end() && it->second) tex = (IDirect3DTexture9*)it->second;
 
         dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);   // full-screen opaque pass: no per-pixel alpha test
         dev->SetTexture(0, tex);
         _lastD3D9Tex = tex;
         dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
@@ -816,12 +846,19 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
 
         dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
         dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+        // Restore full blend pipeline state (not just ALPHABLENDENABLE) so the
+        // cube, generic floor and particles that render afterwards use the
+        // correct DESTBLEND equation and don't appear transparent/wrong.
         dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+        dev->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+        dev->SetRenderState(D3DRS_DESTBLEND,
+                            (_currentBlend == BLEND_ADD) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
         return;
     }
-#endif
+    #endif
 
     glDisable(GL_BLEND);
+    glDisable(GL_ALPHA_TEST);   // full-screen opaque pass: no per-pixel alpha test
     glEnable(GL_TEXTURE_2D);
     if (_lastGLTex != actualTexID) {
         glBindTexture(GL_TEXTURE_2D, actualTexID);
@@ -852,6 +889,7 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
 
     glDrawArrays(GL_QUADS, 0, 4);
+    glEnable(GL_ALPHA_TEST);
     glEnable(GL_BLEND);
 }
 
@@ -859,44 +897,102 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
     uint32_t handle = _nextTexHandle++;
     _textureRegistry[name] = handle;
 
-#ifdef _WIN32
+    #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         return d3d8_registerTexture(handle, width, height, rgbaPixels);
     }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
         auto* dev = (IDirect3DDevice9*)_d3d9Device;
+        const size_t texels = (size_t)width * (size_t)height;
+        const int kind = classifyRGBA(rgbaPixels, texels);
+
+        // 0 = A8R8G8B8, 1 = A8L8 (2 B/texel), 2 = L8 (1 B/texel)
+        int mode = 0;
         IDirect3DTexture9* tex = nullptr;
-        if (SUCCEEDED(dev->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, NULL))) {
-            D3DLOCKED_RECT lr;
-            if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-                const auto* src = (const uint8_t*)rgbaPixels;
-                auto* dst = (uint8_t*)lr.pBits;
-                for (int y = 0; y < height; ++y) {
-                    const auto* srcRow = (const uint32_t*)(src + y * width * 4);
-                    auto* dstRow = (uint32_t*)(dst + y * lr.Pitch);
-                    for (int x = 0; x < width; ++x) {
-                        uint32_t c = srcRow[x];
-                        uint32_t r = (c) & 0xFF;
-                        uint32_t g = (c >> 8) & 0xFF;
-                        uint32_t b = (c >> 16) & 0xFF;
-                        uint32_t a = (c >> 24) & 0xFF;
-                        dstRow[x] = (a << 24) | (r << 16) | (g << 8) | b;
+        if ((kind & TEXKIND_GRAY_OPAQUE) && _d3d9CanL8 &&
+            SUCCEEDED(dev->CreateTexture(width, height, 1, 0, D3DFMT_L8, D3DPOOL_MANAGED, &tex, NULL))) {
+            mode = 2;
+            } else if (kind != 0 && _d3d9CanA8L8 &&
+                SUCCEEDED(dev->CreateTexture(width, height, 1, 0, D3DFMT_A8L8, D3DPOOL_MANAGED, &tex, NULL))) {
+                mode = 1;
+                } else {
+                    tex = nullptr;
+                    if (FAILED(dev->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, NULL))) tex = nullptr;
+                }
+
+                if (tex) {
+                    D3DLOCKED_RECT lr;
+                    if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
+                        const auto* src = (const uint8_t*)rgbaPixels;
+                        auto* dst = (uint8_t*)lr.pBits;
+                        for (int y = 0; y < height; ++y) {
+                            const auto* srcRow = (const uint32_t*)(src + (size_t)y * width * 4);
+                            if (mode == 2) {
+                                auto* dstRow = dst + (size_t)y * lr.Pitch;
+                                for (int x = 0; x < width; ++x) dstRow[x] = (uint8_t)(srcRow[x] & 0xFF);
+                            } else if (mode == 1) {
+                                auto* dstRow = (uint16_t*)(dst + (size_t)y * lr.Pitch);
+                                for (int x = 0; x < width; ++x) {
+                                    uint32_t c = srcRow[x];
+                                    dstRow[x] = (uint16_t)(((c >> 24) << 8) | (c & 0xFF));   // A8L8: A in high byte
+                                }
+                            } else {
+                                auto* dstRow = (uint32_t*)(dst + (size_t)y * lr.Pitch);
+                                for (int x = 0; x < width; ++x) {
+                                    uint32_t c = srcRow[x];
+                                    dstRow[x] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);  // RGBA -> ARGB
+                                }
+                            }
+                        }
+                        tex->UnlockRect(0);
+                        _d3d9Textures[handle] = (void*)tex;
+                    } else {
+                        tex->Release();
                     }
                 }
-                tex->UnlockRect(0);
-                _d3d9Textures[handle] = (void*)tex;
-            }
-        }
-        return handle;
+                return handle;
     }
-#endif
+    #endif
+
+    flushBatch();   // never change the bound texture underneath pending quads
 
     GLuint glID = 0;
     glGenTextures(1, &glID);
     glBindTexture(GL_TEXTURE_2D, glID);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaPixels);
+
+    const size_t texels = (size_t)width * (size_t)height;
+    const int kind = classifyRGBA(rgbaPixels, texels);
+    const uint32_t* px = (const uint32_t*)rgbaPixels;
+    if (kind & TEXKIND_GRAY_OPAQUE) {
+        // opaque grayscale: 1 byte per texel, GL_LUMINANCE gives (L,L,L,1)
+        std::vector<uint8_t> l(texels);
+        for (size_t i = 0; i < texels; ++i) l[i] = (uint8_t)(px[i] & 0xFF);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, l.data());
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    } else if (kind & TEXKIND_WHITE_ALPHA) {
+        // RGB == white everywhere: 1 byte per texel (GL_ALPHA + GL_MODULATE keeps the vertex color untouched)
+        std::vector<uint8_t> a(texels);
+        for (size_t i = 0; i < texels; ++i) a[i] = (uint8_t)(px[i] >> 24);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, a.data());
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    } else if (kind & TEXKIND_GRAY_ALPHA) {
+        // gray + alpha: 2 bytes per texel
+        std::vector<uint8_t> la(texels * 2);
+        for (size_t i = 0; i < texels; ++i) {
+            la[i * 2 + 0] = (uint8_t)(px[i] & 0xFF);
+            la[i * 2 + 1] = (uint8_t)(px[i] >> 24);
+        }
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, la.data());
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    } else {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaPixels);
+    }
+    _lastGLTex = 0;   // bind cache is stale after touching GL_TEXTURE_2D
     return glID;
 }
 

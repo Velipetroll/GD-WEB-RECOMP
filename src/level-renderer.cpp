@@ -83,6 +83,17 @@ static void applyTransformOffset(float& dx, float& dy, float scale, bool flipX, 
     }
 }
 
+// Conservative vertical visibility test. `y` is the sprite center in the un-translated space,
+// `cameraY` is the Y translation applied by the caller. The bound uses (|w|+|h|)/2 which is always
+// >= the half-diagonal, so a rotated sprite is never culled while any part of it can be on screen.
+// The margin also absorbs screen shake and bilinear-filter fringes.
+static inline bool spriteOutsideY(float y, float dw, float dh, float cameraY) {
+    const float margin = 48.0f;
+    const float radius = 0.5f * (std::fabs(dw) + std::fabs(dh));
+    const float sy = y + cameraY;
+    return (sy + radius < -margin) || (sy - radius > (float)screenHeight + margin);
+}
+
 LevelRenderer::LevelRenderer() {
     _buildGround();
 }
@@ -665,8 +676,8 @@ void LevelRenderer::applyEnterEffects(float cameraX) {
         bool isRightSide = (wX > camCenter);
 
         float factor = isRightSide
-            ? std::clamp((camRight - wX) / margin, 0.0f, 1.0f)
-            : std::clamp((wX - camLeft) / margin, 0.0f, 1.0f);
+        ? std::clamp((camRight - wX) / margin, 0.0f, 1.0f)
+        : std::clamp((wX - camLeft) / margin, 0.0f, 1.0f);
 
         if (factor >= 1.0f) {
             if (s.eeActive) {
@@ -758,6 +769,8 @@ void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
                 dh *= _currentAudioScale;
             }
 
+            if (spriteOutsideY(s.y, dw, dh, cameraY)) continue;
+
             if (s.framePtr) {
                 batchAtlasFrame(s.textureID, s.framePtr, s.x, s.y,
                                 dw, dh, s.rotation, s.r, s.g, s.b, s.a, s.flipX, s.flipY, s.blend);
@@ -798,6 +811,8 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
                 dh *= _currentAudioScale;
             }
 
+            if (spriteOutsideY(s.y, dw, dh, cameraY)) continue;
+
             if (s.framePtr) {
                 batchAtlasFrame(s.textureID, s.framePtr, s.x, s.y,
                                 dw, dh, s.rotation, s.r, s.g, s.b, s.a, s.flipX, s.flipY, s.blend);
@@ -823,8 +838,14 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
             float bx = endXPos + col * blockW;
             bool isFront = (col == 0);
 
+            // Off-screen columns/rows are skipped (48 px margin covers shake + rotation of a 30 px block)
+            const float sxBlock = bx - cameraX;
+            if (sxBlock < -48.0f || sxBlock > (float)screenWidth + 48.0f) continue;
+
             for (int i = 0; i < 16; ++i) {
                 float by = pY + (i - 8) * blockH;
+                const float syBlock = by + cameraY;
+                if (syBlock < -48.0f || syBlock > (float)screenHeight + 48.0f) continue;
 
                 // Solid base with the level color (ground color)
                 if (sqAf && webSheetId) {
@@ -949,6 +970,8 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
                 dh = s.h * curScale;
             }
 
+            if (spriteOutsideY(s.y, dw, dh, cameraY)) continue;
+
             if (s.framePtr) {
                 batchAtlasFrame(s.textureID, s.framePtr, s.x, s.y,
                                 dw, dh, s.rotation, s.r, s.g, s.b, s.a, s.flipX, s.flipY, s.blend);
@@ -1024,8 +1047,9 @@ void LevelRenderer::renderGround(float cameraX, float cameraY) {
         ceilingSurfaceY = 0.0f;
     }
 
-    int startTile = (int)std::floor((cameraX - _tileW) / _tileW);
-    int endTile   = (int)std::ceil((cameraX + screenWidth + _tileW) / _tileW);
+    // Tile t spans [t*W - cameraX, (t+1)*W - cameraX]; 32 px of slack covers screen shake.
+    int startTile = (int)std::floor((cameraX - 32.0f) / _tileW);
+    int endTile   = (int)std::floor((cameraX + (float)screenWidth + 32.0f) / _tileW);
 
     const AtlasFrame* gndAf = _gndAf ? _gndAf : findAtlasFrame("groundSquare_01_001.png");
     const AtlasFrame* floorAf = _floorLineAf ? _floorLineAf : findAtlasFrame("floorLine_01_001.png");

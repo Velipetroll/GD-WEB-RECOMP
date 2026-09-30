@@ -27,6 +27,9 @@ struct D3D8State {
     std::unordered_map<uint32_t, IDirect3DTexture8*> textures;
     bool vsync = false;
     bool inScene = false;
+    bool bound = false;      // FVF + stream 0 already bound to the ring VB
+    bool canA8L8 = false;    // lossless 16-bit white/gray + alpha textures
+    bool canL8 = false;      // lossless 8-bit opaque gray textures
 };
 
 static D3D8State s_d3d8;
@@ -76,6 +79,7 @@ static void applyD3D8States() {
 static void createD3D8Buffers() {
     if (!s_d3d8.device) return;
     s_d3d8.vbOffset = 0;
+    s_d3d8.bound = false;
     if (!s_d3d8.vb) {
         s_d3d8.device->CreateVertexBuffer(D3D8_RING_VERTS * sizeof(D3DVertex),
                                           D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY,
@@ -123,6 +127,7 @@ static void createD3D8WhiteTex() {
 static void onResizeD3D8(int newW, int newH) {
     if (!s_d3d8.device || newW <= 0 || newH <= 0) return;
     if (s_d3d8.vb) { s_d3d8.vb->Release(); s_d3d8.vb = nullptr; }
+    s_d3d8.bound = false;
     s_d3d8.d3dpp.BackBufferWidth = newW;
     s_d3d8.d3dpp.BackBufferHeight = newH;
     if (FAILED(s_d3d8.device->Reset(&s_d3d8.d3dpp))) return;
@@ -173,6 +178,11 @@ bool d3d8_init(SDL_Window* window, int windowW, int windowH, bool vsync) {
             if (FAILED(hr)) return false;
         }
     }
+
+    s_d3d8.canA8L8 = SUCCEEDED(s_d3d8.d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, s_d3d8.d3dpp.BackBufferFormat,
+                                                             0, D3DRTYPE_TEXTURE, D3DFMT_A8L8));
+    s_d3d8.canL8   = SUCCEEDED(s_d3d8.d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, s_d3d8.d3dpp.BackBufferFormat,
+                                                             0, D3DRTYPE_TEXTURE, D3DFMT_L8));
 
     applyD3D8States();
     createD3D8WhiteTex();
@@ -268,9 +278,12 @@ void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexI
         memcpy(pLock, buffer, count * sizeof(D3DVertex));
         s_d3d8.vb->Unlock();
 
-        s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
-        s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
-        s_d3d8.device->SetIndices(s_d3d8.ib, s_d3d8.vbOffset);
+        if (!s_d3d8.bound) {
+            s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
+            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
+            s_d3d8.bound = true;
+        }
+        s_d3d8.device->SetIndices(s_d3d8.ib, s_d3d8.vbOffset);   // base vertex index moves with the ring offset
         UINT numPrimitives = (UINT)(count / 4) * 2;
         s_d3d8.device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, count, 0, numPrimitives);
         s_d3d8.vbOffset += count;
@@ -288,26 +301,41 @@ void d3d8_drawCircle(float cx, float cy, float radius, float r, float g, float b
 
     const int segments = 16;
     DWORD color = toD3D8Color(r, g, b, a);
+    size_t count = filled ? (segments + 2) : (segments + 1);
 
-    if (filled) {
-        D3DVertex v[18];
-        v[0] = { (cx + transX) * scaleX, (cy + transY) * scaleY, 0.5f, 1.0f, color, 0.5f, 0.5f };
-        for (int i = 0; i <= segments; ++i) {
-            float ang = (i / (float)segments) * 6.2831853f;
-            v[i + 1] = { (cx + transX + std::cos(ang) * radius) * scaleX,
-                         (cy + transY + std::sin(ang) * radius) * scaleY,
-                         0.5f, 1.0f, color, 0.5f, 0.5f };
+    DWORD lockFlags = D3DLOCK_NOOVERWRITE;
+    if (s_d3d8.vbOffset + count > D3D8_RING_VERTS) {
+        s_d3d8.vbOffset = 0;
+        lockFlags = D3DLOCK_DISCARD;
+    }
+
+    D3DVertex* pLock = nullptr;
+    if (SUCCEEDED(s_d3d8.vb->Lock(s_d3d8.vbOffset * sizeof(D3DVertex), count * sizeof(D3DVertex), (BYTE**)&pLock, lockFlags))) {
+        if (filled) {
+            pLock[0] = { (cx + transX) * scaleX, (cy + transY) * scaleY, 0.5f, 1.0f, color, 0.5f, 0.5f };
+            for (int i = 0; i <= segments; ++i) {
+                float ang = (i / (float)segments) * 6.2831853f;
+                pLock[i + 1] = { (cx + transX + std::cos(ang) * radius) * scaleX,
+                    (cy + transY + std::sin(ang) * radius) * scaleY,
+                    0.5f, 1.0f, color, 0.5f, 0.5f };
+            }
+            s_d3d8.vb->Unlock();
+
+            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
+            s_d3d8.device->DrawPrimitive(D3DPT_TRIANGLEFAN, s_d3d8.vbOffset, segments);
+        } else {
+            for (int i = 0; i <= segments; ++i) {
+                float ang = (i / (float)segments) * 6.2831853f;
+                pLock[i] = { (cx + transX + std::cos(ang) * radius) * scaleX,
+                    (cy + transY + std::sin(ang) * radius) * scaleY,
+                    0.5f, 1.0f, color, 0.5f, 0.5f };
+            }
+            s_d3d8.vb->Unlock();
+
+            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
+            s_d3d8.device->DrawPrimitive(D3DPT_LINESTRIP, s_d3d8.vbOffset, segments);
         }
-        s_d3d8.device->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, segments, v, sizeof(D3DVertex));
-    } else {
-        D3DVertex v[17];
-        for (int i = 0; i <= segments; ++i) {
-            float ang = (i / (float)segments) * 6.2831853f;
-            v[i] = { (cx + transX + std::cos(ang) * radius) * scaleX,
-                     (cy + transY + std::sin(ang) * radius) * scaleY,
-                     0.5f, 1.0f, color, 0.5f, 0.5f };
-        }
-        s_d3d8.device->DrawPrimitiveUP(D3DPT_LINESTRIP, segments, v, sizeof(D3DVertex));
+        s_d3d8.vbOffset += count;
     }
 }
 
@@ -358,6 +386,7 @@ void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffset
     if (it != s_d3d8.textures.end() && it->second) tex = it->second;
 
     s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);   // opaque full-screen pass: no per-pixel alpha test
     s_d3d8.device->SetTexture(0, tex);
     s_d3d8.lastBoundTex = tex;
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
@@ -388,33 +417,60 @@ void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffset
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
     s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
 }
 
 uint32_t d3d8_registerTexture(uint32_t handle, int width, int height, const void* rgbaPixels) {
     if (!s_d3d8.device) return handle;
+
+    const size_t texels = (size_t)width * (size_t)height;
+    const int kind = classifyRGBA(rgbaPixels, texels);
+
+    // 0 = A8R8G8B8, 1 = A8L8 (2 B/texel), 2 = L8 (1 B/texel) - all bit-exact for the classified content
+    int mode = 0;
     IDirect3DTexture8* tex = nullptr;
-    if (SUCCEEDED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex))) {
-        D3DLOCKED_RECT lr;
-        if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-            const auto* src = (const uint8_t*)rgbaPixels;
-            auto* dst = (uint8_t*)lr.pBits;
-            for (int y = 0; y < height; ++y) {
-                const auto* srcRow = (const uint32_t*)(src + y * width * 4);
-                auto* dstRow = (uint32_t*)(dst + y * lr.Pitch);
-                for (int x = 0; x < width; ++x) {
-                    uint32_t c = srcRow[x];
-                    uint32_t r = (c) & 0xFF;
-                    uint32_t g = (c >> 8) & 0xFF;
-                    uint32_t b = (c >> 16) & 0xFF;
-                    uint32_t a = (c >> 24) & 0xFF;
-                    dstRow[x] = (a << 24) | (r << 16) | (g << 8) | b;
+    if ((kind & TEXKIND_GRAY_OPAQUE) && s_d3d8.canL8 &&
+        SUCCEEDED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_L8, D3DPOOL_MANAGED, &tex))) {
+        mode = 2;
+        } else if (kind != 0 && s_d3d8.canA8L8 &&
+            SUCCEEDED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_A8L8, D3DPOOL_MANAGED, &tex))) {
+            mode = 1;
+            } else {
+                tex = nullptr;
+                if (FAILED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex))) tex = nullptr;
+            }
+
+            if (tex) {
+                D3DLOCKED_RECT lr;
+                if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
+                    const auto* src = (const uint8_t*)rgbaPixels;
+                    auto* dst = (uint8_t*)lr.pBits;
+                    for (int y = 0; y < height; ++y) {
+                        const auto* srcRow = (const uint32_t*)(src + (size_t)y * width * 4);
+                        if (mode == 2) {
+                            auto* dstRow = dst + (size_t)y * lr.Pitch;
+                            for (int x = 0; x < width; ++x) dstRow[x] = (uint8_t)(srcRow[x] & 0xFF);
+                        } else if (mode == 1) {
+                            auto* dstRow = (uint16_t*)(dst + (size_t)y * lr.Pitch);
+                            for (int x = 0; x < width; ++x) {
+                                uint32_t c = srcRow[x];
+                                dstRow[x] = (uint16_t)(((c >> 24) << 8) | (c & 0xFF));
+                            }
+                        } else {
+                            auto* dstRow = (uint32_t*)(dst + (size_t)y * lr.Pitch);
+                            for (int x = 0; x < width; ++x) {
+                                uint32_t c = srcRow[x];
+                                dstRow[x] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);  // RGBA -> ARGB
+                            }
+                        }
+                    }
+                    tex->UnlockRect(0);
+                    s_d3d8.textures[handle] = tex;
+                } else {
+                    tex->Release();
                 }
             }
-            tex->UnlockRect(0);
-            s_d3d8.textures[handle] = tex;
-        }
-    }
-    return handle;
+            return handle;
 }
 
 #else

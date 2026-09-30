@@ -74,12 +74,7 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
 
     float x0, y0, x1, y1, x2, y2, x3, y3;
 
-    if (rotation == 0.0f) {
-        x0 = x - halfW; y0 = y - halfH;
-        x1 = x + halfW; y1 = y - halfH;
-        x2 = x + halfW; y2 = y + halfH;
-        x3 = x - halfW; y3 = y + halfH;
-    } else {
+    {
         float cosR, sinR;
         if (rotation == 90.0f || rotation == -270.0f) {
             cosR = 0.0f; sinR = 1.0f;
@@ -244,8 +239,8 @@ void drawAtlasFrame(const std::string& frameName, float x, float y,
                     BlendMode blend)
 {
     const AtlasFrame* frame = (AtlasManager::squareFrame && (frameName == "square.png" || frameName == "square"))
-                              ? AtlasManager::squareFrame
-                              : findAtlasFrame(frameName);
+    ? AtlasManager::squareFrame
+    : findAtlasFrame(frameName);
     uint32_t texID = 0;
     float drawW = w;
     float drawH = h;

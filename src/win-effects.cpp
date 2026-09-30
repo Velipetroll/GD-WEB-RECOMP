@@ -1,6 +1,7 @@
 #include "win-effects.h"
 #include "level-data-helpers.h"
 #include "render-device.h"
+#include "boot-scene.h"
 #include <algorithm>
 #include <cmath>
 
@@ -110,6 +111,13 @@ void WinEffects::render() {
         RenderDevice::get().drawCircle(r.x, r.y, curR, red, green, blue, alpha, r.filled, BLEND_ADD);
     }
 
+    const AtlasFrame* sqFrame = AtlasManager::squareFrame;
+    uint32_t sheetId = 0;
+    if (sqFrame) {
+        auto itWs = BootScene::textures.find("GJ_WebSheet");
+        if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
+    }
+
     for (const auto& p : particles) {
         if (p.delay > 0.0f || p.done) continue;
 
@@ -121,7 +129,12 @@ void WinEffects::render() {
         float green = ((p.color >> 8)  & 0xFF) / 255.0f;
         float blue  =  (p.color        & 0xFF) / 255.0f;
 
-        drawAtlasFrame("square.png", p.x, p.y, 20.0f * scale, 20.0f * scale, 0.0f, red, green, blue, alpha);
+        if (sqFrame && sheetId) {
+            // Direct batch: skips the per-particle string compare / map lookup of drawAtlasFrame("square.png")
+            batchAtlasFrame(sheetId, sqFrame, p.x, p.y, 20.0f * scale, 20.0f * scale, 0.0f, red, green, blue, alpha);
+        } else {
+            drawAtlasFrame("square.png", p.x, p.y, 20.0f * scale, 20.0f * scale, 0.0f, red, green, blue, alpha);
+        }
     }
     applyBlendMode(BLEND_NORMAL);
 }

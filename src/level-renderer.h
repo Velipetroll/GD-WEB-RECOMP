@@ -7,24 +7,30 @@
 #include "level-data-helpers.h"
 #include "pako-compression.h"
 
+// Members are ordered so that everything the render loop touches sits in the first 64 bytes
+// (one cache line): iterating thousands of sprites per frame on an old CPU no longer drags
+// the std::string and the enter-effect bookkeeping through the cache.
 struct VisualSprite {
-    std::string frame;
+    // --- hot (render) data: 64 bytes ---
     const AtlasFrame* framePtr = nullptr;
-    GLuint textureID = 0;
     float x = 0.0f, y = 0.0f;
     float w = 0.0f, h = 0.0f;
-    float baseX = 0.0f, baseY = 0.0f;
-    float worldX = 0.0f;
     float scaleX = 1.0f, scaleY = 1.0f;
     float rotation = 0.0f;
-    bool flipX = false, flipY = false;
     float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
-    float baseAlpha = 1.0f;
+    GLuint textureID = 0;
     BlendMode blend = BLEND_NORMAL;
-    int layer = 1;
-    bool audioScale = false;
+    bool flipX = false, flipY = false;
     bool visible = true;
+    bool audioScale = false;
+
+    // --- cold data ---
     bool eeActive = false;
+    int layer = 1;
+    float baseX = 0.0f, baseY = 0.0f;
+    float worldX = 0.0f;
+    float baseAlpha = 1.0f;
+    std::string frame;
 };
 
 struct ColorTrigger {
