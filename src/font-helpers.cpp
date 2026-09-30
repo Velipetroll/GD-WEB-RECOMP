@@ -222,6 +222,7 @@ static void initSystemTrueTypeFont() {
     };
     #else
     const char* fontPaths[] = {
+        "assets/font.ttf",
         "/usr/share/fonts/TTF/DejaVuSans.ttf",
         "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
         "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
@@ -238,14 +239,18 @@ static void initSystemTrueTypeFont() {
             file.seekg(0, std::ios::beg);
             ttfBuffer.resize(size);
             if (file.read((char*)ttfBuffer.data(), size)) {
-                std::cout << "[font-helpers] Loaded system font: " << path << std::endl;
+                std::cout << "[font-helpers] Loaded font: " << path << std::endl;
                 break;
             }
         }
     }
 
     if (ttfBuffer.empty()) {
-        std::cerr << "[font-helpers] Could not find system TTF font." << std::endl;
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            std::cerr << "[font-helpers] Could not find system TTF font." << std::endl;
+        }
         return;
     }
 

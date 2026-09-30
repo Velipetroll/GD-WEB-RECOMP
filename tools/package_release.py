@@ -132,6 +132,17 @@ def main():
         shutil.rmtree(stage)
         print(f"✓ Linux x86_64: {out_tar} ({os.path.getsize(out_tar):,} bytes)")
 
+    # 4. WebAssembly & WebGL
+    web_dir = os.path.join(BUILD_DIR, "web")
+    if os.path.isfile(os.path.join(web_dir, "index.html")):
+        out_zip = os.path.join(DIST_DIR, f"GeometryDash-{version}-web.zip")
+        with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(web_dir):
+                for f in files:
+                    full = os.path.join(root, f)
+                    zf.write(full, os.path.relpath(full, web_dir))
+        print(f"✓ WebAssembly / WebGL: {out_zip} ({os.path.getsize(out_zip):,} bytes)")
+
     print(f"Release packaging for {version} completed successfully!")
 
 if __name__ == "__main__":

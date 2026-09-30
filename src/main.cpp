@@ -46,6 +46,60 @@ void updateViewport(int windowWidth, int windowHeight, SDL_Window* window = null
     RenderDevice::get().setViewport(0, 0, windowWidth, windowHeight, (float)screenWidth, (float)screenHeight);
 }
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+struct EmscriptenContext {
+    SDL_Window* window = nullptr;
+    std::unique_ptr<GameScene> gameScene;
+    int winW = 0;
+    int winH = 0;
+    Uint64 lastTime = 0;
+    Uint64 timerFreq = 0;
+};
+
+static EmscriptenContext g_emCtx;
+
+static void emscriptenFrame() {
+    int curW = 0, curH = 0;
+    SDL_GetWindowSize(g_emCtx.window, &curW, &curH);
+    if (curW > 0 && curH > 0 && (curW != g_emCtx.winW || curH != g_emCtx.winH)) {
+        g_emCtx.winW = curW;
+        g_emCtx.winH = curH;
+        updateViewport(curW, curH, g_emCtx.window);
+    }
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_WINDOWEVENT) {
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED ||
+                event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED ||
+                event.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
+                event.window.event == SDL_WINDOWEVENT_RESTORED)
+            {
+                SDL_GetWindowSize(g_emCtx.window, &g_emCtx.winW, &g_emCtx.winH);
+                updateViewport(g_emCtx.winW, g_emCtx.winH, g_emCtx.window);
+            }
+        } else {
+            g_emCtx.gameScene->handleEvent(event, g_emCtx.winW, g_emCtx.winH, g_emCtx.window);
+        }
+    }
+
+    Uint64 frameStartTime = SDL_GetPerformanceCounter();
+    float dt = (float)(frameStartTime - g_emCtx.lastTime) / (float)g_emCtx.timerFreq;
+    g_emCtx.lastTime = frameStartTime;
+
+    if (dt > 0.1f) dt = 0.1f;
+
+    g_emCtx.gameScene->update(dt);
+    WinEffects::update(dt);
+
+    RenderDevice::get().beginFrame();
+    g_emCtx.gameScene->render();
+    RenderDevice::get().endFrame();
+}
+#endif
+
 int main(int argc, char* argv[]) {
     Settings::get().load();
 
@@ -84,6 +138,12 @@ int main(int argc, char* argv[]) {
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         windowFlags |= SDL_WINDOW_OPENGL;
     }
+    const char* winTitle = "Geometry Dash - Play Level 1";
+    #elif defined(__EMSCRIPTEN__)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
     const char* winTitle = "Geometry Dash - Play Level 1";
     #else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
@@ -177,6 +237,15 @@ int main(int argc, char* argv[]) {
     int cachedTargetFps = Settings::get().currentFps().fps;
     int lastFpsOptIndex = -1;
 
+#ifdef __EMSCRIPTEN__
+    g_emCtx.window = window;
+    g_emCtx.gameScene = std::move(gameScene);
+    g_emCtx.winW = winW;
+    g_emCtx.winH = winH;
+    g_emCtx.lastTime = SDL_GetPerformanceCounter();
+    g_emCtx.timerFreq = SDL_GetPerformanceFrequency();
+    emscripten_set_main_loop(emscriptenFrame, 0, 1);
+#else
     while (running) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -249,6 +318,7 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+#endif
 
     gameScene.reset();
     RenderDevice::get().shutdown();

@@ -12,20 +12,40 @@
 #include <cstdio>
 #include <cmath>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+#endif
+
 static constexpr bool DEBUG_SPAWN_AT_END = 0;
 
 static void openURL(const std::string& url) {
+#ifdef __EMSCRIPTEN__
+    EM_ASM({
+        window.open(UTF8ToString($0), '_blank');
+    }, url.c_str());
+#else
     SDL_OpenURL(url.c_str());
+#endif
 }
 
 static void toggleFullscreen(SDL_Window* window) {
     if (!window) return;
+#ifdef __EMSCRIPTEN__
+    EmscriptenFullscreenChangeEvent fsStatus;
+    if (emscripten_get_fullscreen_status(&fsStatus) == EMSCRIPTEN_RESULT_SUCCESS && fsStatus.isFullscreen) {
+        emscripten_exit_fullscreen();
+    } else {
+        emscripten_request_fullscreen("#canvas", 1);
+    }
+#else
     Uint32 flags = SDL_GetWindowFlags(window);
     if (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
         SDL_SetWindowFullscreen(window, 0);
     } else {
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     }
+#endif
 }
 
 static std::string formatPlayTime(float seconds) {
@@ -555,10 +575,16 @@ ButtonId GameScene::_checkButtonHit(float vx, float vy) {
 }
 
 void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SDL_Window* window) {
+    #ifdef __EMSCRIPTEN__
+    _isFullscreen = EM_ASM_INT({
+        return (document.fullscreenElement || document.webkitFullscreenElement) ? 1 : 0;
+    }) != 0;
+    #else
     if (window) {
         Uint32 flags = SDL_GetWindowFlags(window);
         _isFullscreen = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
     }
+    #endif
 
     if (_fadeState != 0) return;
 
@@ -585,221 +611,264 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
         if (event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_UP) {
             releaseButton();
         }
-    } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEMOTION || event.type == SDL_MOUSEBUTTONUP) {
-        float targetAspect = (float)screenWidth / (float)screenHeight;
-        float windowAspect = (float)windowW / (float)windowH;
-        int vpX = 0, vpY = 0, vpW = windowW, vpH = windowH;
+    } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEMOTION || event.type == SDL_MOUSEBUTTONUP ||
+        event.type == SDL_FINGERDOWN || event.type == SDL_FINGERMOTION || event.type == SDL_FINGERUP) {
 
-        if (windowAspect > targetAspect) {
-            vpW = (int)(windowH * targetAspect);
-            vpX = (windowW - vpW) / 2;
-        } else {
-            vpH = (int)(windowW / targetAspect);
-            vpY = (windowH - vpH) / 2;
+        int mouseX = 0, mouseY = 0;
+    bool isDown = false, isMotion = false, isUp = false;
+
+    if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERMOTION || event.type == SDL_FINGERUP) {
+        mouseX = (int)(event.tfinger.x * (float)windowW);
+        mouseY = (int)(event.tfinger.y * (float)windowH);
+        isDown = (event.type == SDL_FINGERDOWN);
+        isMotion = (event.type == SDL_FINGERMOTION);
+        isUp = (event.type == SDL_FINGERUP);
+    } else {
+        mouseX = (event.type == SDL_MOUSEMOTION) ? event.motion.x : event.button.x;
+        mouseY = (event.type == SDL_MOUSEMOTION) ? event.motion.y : event.button.y;
+        isDown = (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT);
+        isMotion = (event.type == SDL_MOUSEMOTION);
+        isUp = (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT);
+    }
+
+    float virtX = 0.0f;
+    float virtY = 0.0f;
+
+    #ifdef __EMSCRIPTEN__
+    // Obtiene las coordenadas proporcionales al tamaño real del canvas en pantalla
+    virtX = (float)EM_ASM_DOUBLE({
+        var c = Module['canvas'] || document.getElementById('canvas') || document.querySelector('canvas');
+        if (!c) return $0;
+        var rect = c.getBoundingClientRect();
+        if (rect.width <= 0) return $0;
+        var clientX = (window.lastClientX !== undefined && window.lastClientX !== 0) ? window.lastClientX : (event.clientX || $0);
+        return ((clientX - rect.left) / rect.width) * 1136.0;
+    }, mouseX);
+
+    virtY = (float)EM_ASM_DOUBLE({
+        var c = Module['canvas'] || document.getElementById('canvas') || document.querySelector('canvas');
+        if (!c) return $0;
+        var rect = c.getBoundingClientRect();
+        if (rect.height <= 0) return $0;
+        var clientY = (window.lastClientY !== undefined && window.lastClientY !== 0) ? window.lastClientY : (event.clientY || $0);
+        return ((clientY - rect.top) / rect.height) * 640.0;
+    }, mouseY);
+    #else
+    float targetAspect = (float)screenWidth / (float)screenHeight;
+    float windowAspect = (float)windowW / (float)windowH;
+    int vpX = 0, vpY = 0, vpW = windowW, vpH = windowH;
+
+    if (windowAspect > targetAspect) {
+        vpW = (int)(windowH * targetAspect);
+        vpX = (windowW - vpW) / 2;
+    } else {
+        vpH = (int)(windowW / targetAspect);
+        vpY = (windowH - vpH) / 2;
+    }
+
+    virtX = (float)(mouseX - vpX) * ((float)screenWidth / (float)vpW);
+    virtY = (float)(mouseY - vpY) * ((float)screenHeight / (float)vpH);
+    #endif
+
+    float midX = screenWidth * 0.5f;
+    float guiScale = getGuiScale();
+
+    const float grooveScale = 0.7f * guiScale;
+    const AtlasFrame* grooveAf = findAtlasFrame("slidergroove.png");
+    const float origGrooveW = (grooveAf && grooveAf->w > 0.0f) ? grooveAf->w : 420.0f;
+    const float trackWidth = (origGrooveW - 8.0f) * grooveScale;
+    const float halfGrooveW = (origGrooveW * grooveScale) * 0.5f;
+
+    if (isDown) {
+        if (_showSettingsPopup) {
+            float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
+            #if defined(_WIN32)
+            const float basePopupH = 340.0f;
+            #else
+            const float basePopupH = 260.0f;
+            #endif
+            float fpsY = 320.0f - (basePopupH * guiScale * 0.5f) + 114.0f * guiScale;
+            if (virtX >= fpsStartX - 25.0f * guiScale && virtX <= fpsStartX + trackWidth + 25.0f * guiScale &&
+                virtY >= fpsY - 25.0f * guiScale && virtY <= fpsY + 25.0f * guiScale) {
+                _draggingFpsSlider = true;
+            float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
+            int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
+            Settings::get().setFpsIndex(stepIdx);
+            return;
+                }
         }
 
-        int mouseX = (event.type == SDL_MOUSEMOTION) ? event.motion.x : event.button.x;
-        int mouseY = (event.type == SDL_MOUSEMOTION) ? event.motion.y : event.button.y;
-
-        float virtX = (float)(mouseX - vpX) * ((float)screenWidth / (float)vpW);
-        float virtY = (float)(mouseY - vpY) * ((float)screenHeight / (float)vpH);
-        float midX = screenWidth * 0.5f;
-        float guiScale = getGuiScale();
-
-        const float grooveScale = 0.7f * guiScale;
-        const AtlasFrame* grooveAf = findAtlasFrame("slidergroove.png");
-        const float origGrooveW = (grooveAf && grooveAf->w > 0.0f) ? grooveAf->w : 420.0f;
-        const float trackWidth = (origGrooveW - 8.0f) * grooveScale;
-        const float halfGrooveW = (origGrooveW * grooveScale) * 0.5f;
-
-        if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-            if (_showSettingsPopup) {
-                float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
-                #if defined(_WIN32)
-                const float basePopupH = 340.0f;
-                #else
-                const float basePopupH = 260.0f;
-                #endif
-                float fpsY = 320.0f - (basePopupH * guiScale * 0.5f) + 114.0f * guiScale;
-                if (virtX >= fpsStartX - 25.0f * guiScale && virtX <= fpsStartX + trackWidth + 25.0f * guiScale &&
-                    virtY >= fpsY - 25.0f * guiScale && virtY <= fpsY + 25.0f * guiScale) {
-                    _draggingFpsSlider = true;
-                    float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
-                    int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
-                    Settings::get().setFpsIndex(stepIdx);
-                    return;
-                }
-            }
-
-            if (_paused && !_showSettingsPopup && !_showEndLayerUI) {
-                float sliderY = 320.0f + (470.0f - 320.0f) * guiScale;
-                float musicStartX = (midX - 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
-                if (virtX >= musicStartX - 25.0f * guiScale && virtX <= musicStartX + trackWidth + 25.0f * guiScale &&
-                    virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
-                    _draggingMusicSlider = true;
-                    float val = std::clamp((virtX - musicStartX) / trackWidth, 0.0f, 1.0f);
-                    if (val < 0.03f) val = 0.0f;
-                    _audio.setUserMusicVolume(val);
-                    return;
+        if (_paused && !_showSettingsPopup && !_showEndLayerUI) {
+            float sliderY = 320.0f + (470.0f - 320.0f) * guiScale;
+            float musicStartX = (midX - 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
+            if (virtX >= musicStartX - 25.0f * guiScale && virtX <= musicStartX + trackWidth + 25.0f * guiScale &&
+                virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
+                _draggingMusicSlider = true;
+            float val = std::clamp((virtX - musicStartX) / trackWidth, 0.0f, 1.0f);
+            if (val < 0.03f) val = 0.0f;
+            _audio.setUserMusicVolume(val);
+                return;
                 }
 
                 float sfxStartX = (midX + 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
                 if (virtX >= sfxStartX - 25.0f * guiScale && virtX <= sfxStartX + trackWidth + 25.0f * guiScale &&
                     virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
                     _draggingSfxSlider = true;
-                    float val = std::clamp((virtX - sfxStartX) / trackWidth, 0.0f, 1.0f);
-                    if (val < 0.03f) val = 0.0f;
-                    _sfxVolume = val;
+                float val = std::clamp((virtX - sfxStartX) / trackWidth, 0.0f, 1.0f);
+                if (val < 0.03f) val = 0.0f;
+                _sfxVolume = val;
                     _audio.setSfxVolume(_sfxVolume);
                     return;
-                }
-            }
-
-            ButtonId hit = _checkButtonHit(virtX, virtY);
-            if (hit != BTN_COUNT) {
-                _heldBtn = hit;
-                _isButtonPressed = true;
-                _btnAnims[hit].press(_getBaseScale(hit));
-                return;
-            }
-
-            if (_showSettingsPopup || _showInfoPopup) return;
-
-            if (!_menuActive && !_paused && !_showEndLayerUI) {
-                if (_pauseBtnVisible && _pauseBtnAlpha > 0.05f) {
-                    const AtlasFrame* pbAf = findAtlasFrame("GJ_pauseBtn_clean_001.png");
-                    float pbW = ((pbAf && pbAf->w > 0.0f) ? pbAf->w : 40.0f) * guiScale;
-                    float pbH = ((pbAf && pbAf->h > 0.0f) ? pbAf->h : 40.0f) * guiScale;
-                    float pbCenterX = screenWidth - 30.0f * guiScale;
-                    float pbCenterY = 30.0f * guiScale;
-
-                    if (std::abs(virtX - pbCenterX) <= pbW && std::abs(virtY - pbCenterY) <= pbH) {
-                        pauseGame();
-                        return;
                     }
-                }
-                pushButton();
-            }
-        } else if (event.type == SDL_MOUSEMOTION) {
-            if (_showSettingsPopup && _draggingFpsSlider) {
-                float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
-                float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
-                int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
-                Settings::get().setFpsIndex(stepIdx);
-                return;
-            }
-
-            if (_paused && !_showSettingsPopup && !_showEndLayerUI) {
-                if (_draggingMusicSlider) {
-                    float startX = (midX - 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
-                    float val = std::clamp((virtX - startX) / trackWidth, 0.0f, 1.0f);
-                    if (val < 0.03f) val = 0.0f;
-                    _audio.setUserMusicVolume(val);
-                    return;
-                } else if (_draggingSfxSlider) {
-                    float startX = (midX + 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
-                    float val = std::clamp((virtX - startX) / trackWidth, 0.0f, 1.0f);
-                    if (val < 0.03f) val = 0.0f;
-                    _sfxVolume = val;
-                    _audio.setSfxVolume(_sfxVolume);
-                    return;
-                }
-            }
-
-            if (_heldBtn != BTN_COUNT) {
-                ButtonId cur = _checkButtonHit(virtX, virtY);
-                if (cur != _heldBtn && _isButtonPressed) {
-                    _isButtonPressed = false;
-                    _btnAnims[_heldBtn].deselect();
-                } else if (cur == _heldBtn && !_isButtonPressed) {
-                    _isButtonPressed = true;
-                    _btnAnims[_heldBtn].press(_getBaseScale(_heldBtn));
-                }
-            }
-        } else if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
-            if (_draggingMusicSlider || _draggingSfxSlider || _draggingFpsSlider) {
-                Settings::get().musicVolume = _audio.getUserMusicVolume();
-                Settings::get().sfxVolume = _sfxVolume;
-                Settings::get().save();
-            }
-
-            _draggingMusicSlider = false;
-            _draggingSfxSlider = false;
-            _draggingFpsSlider = false;
-
-            if (_heldBtn != BTN_COUNT) {
-                ButtonId releaseHit = _checkButtonHit(virtX, virtY);
-                ButtonId active = _heldBtn;
-                bool wasPressed = _isButtonPressed;
-
-                _heldBtn = BTN_COUNT;
-                _isButtonPressed = false;
-                _btnAnims[active].release();
-
-                if (wasPressed && releaseHit == active) {
-                    switch (active) {
-                        case BTN_INFO_CLOSE: _showInfoPopup = false; break;
-                        case BTN_INFO_YT: openURL("https://www.youtube.com/watch?v=JhKyKEDxo8Q"); break;
-                        case BTN_SETTINGS_CLOSE: _showSettingsPopup = false; break;
-                        case BTN_MENU_SETTINGS: _showSettingsPopup = true; break;
-                        case BTN_MENU_INFO: _showInfoPopup = true; break;
-                        #if defined(_WIN32)
-                        case BTN_SETTINGS_RENDER_PREV:
-                            Settings::get().prevRenderer();
-                            break;
-                        case BTN_SETTINGS_RENDER_NEXT:
-                        case BTN_SETTINGS_RENDER_BOX:
-                            Settings::get().nextRenderer();
-                            break;
-                            #endif
-                        case BTN_SETTINGS_SHOW_FPS_PREV:
-                        case BTN_SETTINGS_SHOW_FPS_NEXT:
-                        case BTN_SETTINGS_SHOW_FPS_BOX:
-                            Settings::get().showFps = !Settings::get().showFps;
-                            Settings::get().save();
-                            if (Settings::get().showFps) {
-                                _lastFpsUpdateTick = SDL_GetTicks();
-                                _fpsFrameCount = 0;
-                                _fpsText = "60 FPS";
-                                _fpsDisplayText = std::string("60 FPS - ") + RenderDevice::get().getBackendName();
-                                _cachedFpsGlyphs.clear();
-                            }
-                            break;
-                        case BTN_MENU_FS:
-                        case BTN_PAUSE_FS:
-                            toggleFullscreen(window);
-                            _isFullscreen = !_isFullscreen;
-                            Settings::get().fullscreen = _isFullscreen;
-                            Settings::get().save();
-                            break;
-                        case BTN_MENU_STEAM: openURL("https://store.steampowered.com/app/322170/Geometry_Dash"); break;
-                        case BTN_MENU_GOOGLE: openURL("https://play.google.com/store/apps/details?id=com.robtopx.geometryjump&hl=en"); break;
-                        case BTN_MENU_APPLE: openURL("https://apps.apple.com/us/app/geometry-dash/id625334537"); break;
-                        case BTN_MENU_PLAY: _audio.playEffect("playSound_01"); startGame(); break;
-                        case BTN_PAUSE_PLAY: resumeGame(); break;
-                        case BTN_PAUSE_REPLAY: resumeGame(); restartLevel(); break;
-                        case BTN_PAUSE_MENU:
-                            _audio.playEffect("quitSound_01");
-                            _audio.stopMusic();
-                            _fadeState = 1;
-                            _fadeTimer = 0.0f;
-                            break;
-                        case BTN_END_REPLAY:
-                            _hideEndLayer([this]() { restartLevel(); });
-                            break;
-                        case BTN_END_MENU:
-                            _audio.playEffect("quitSound_01");
-                            _audio.stopMusic();
-                            _fadeState = 1;
-                            _fadeTimer = 0.0f;
-                            break;
-                        default: break;
-                    }
-                }
-            }
-            releaseButton();
         }
+
+        ButtonId hit = _checkButtonHit(virtX, virtY);
+        if (hit != BTN_COUNT) {
+            _heldBtn = hit;
+            _isButtonPressed = true;
+            _btnAnims[hit].press(_getBaseScale(hit));
+            return;
+        }
+
+        if (_showSettingsPopup || _showInfoPopup) return;
+
+        if (!_menuActive && !_paused && !_showEndLayerUI) {
+            if (_pauseBtnVisible && _pauseBtnAlpha > 0.005f) {
+                const AtlasFrame* pbAf = findAtlasFrame("GJ_pauseBtn_clean_001.png");
+                float pbW = ((pbAf && pbAf->w > 0.0f) ? pbAf->w : 40.0f) * guiScale;
+                float pbH = ((pbAf && pbAf->h > 0.0f) ? pbAf->h : 40.0f) * guiScale;
+                float pbCenterX = screenWidth - 30.0f * guiScale;
+                float pbCenterY = 30.0f * guiScale;
+                float hitW = std::max(pbW * 1.5f, 28.0f * guiScale);
+                float hitH = std::max(pbH * 1.5f, 28.0f * guiScale);
+
+                if (std::abs(virtX - pbCenterX) <= hitW && std::abs(virtY - pbCenterY) <= hitH) {
+                    pauseGame();
+                    return;
+                }
+            }
+            pushButton();
+        }
+    } else if (isMotion) {
+        if (_showSettingsPopup && _draggingFpsSlider) {
+            float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
+            float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
+            int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
+            Settings::get().setFpsIndex(stepIdx);
+            return;
+        }
+
+        if (_paused && !_showSettingsPopup && !_showEndLayerUI) {
+            if (_draggingMusicSlider) {
+                float startX = (midX - 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
+                float val = std::clamp((virtX - startX) / trackWidth, 0.0f, 1.0f);
+                if (val < 0.03f) val = 0.0f;
+                _audio.setUserMusicVolume(val);
+                return;
+            } else if (_draggingSfxSlider) {
+                float startX = (midX + 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
+                float val = std::clamp((virtX - startX) / trackWidth, 0.0f, 1.0f);
+                if (val < 0.03f) val = 0.0f;
+                _sfxVolume = val;
+                _audio.setSfxVolume(_sfxVolume);
+                return;
+            }
+        }
+
+        if (_heldBtn != BTN_COUNT) {
+            ButtonId cur = _checkButtonHit(virtX, virtY);
+            if (cur != _heldBtn && _isButtonPressed) {
+                _isButtonPressed = false;
+                _btnAnims[_heldBtn].deselect();
+            } else if (cur == _heldBtn && !_isButtonPressed) {
+                _isButtonPressed = true;
+                _btnAnims[_heldBtn].press(_getBaseScale(_heldBtn));
+            }
+        }
+    } else if (isUp) {
+        if (_draggingMusicSlider || _draggingSfxSlider || _draggingFpsSlider) {
+            Settings::get().musicVolume = _audio.getUserMusicVolume();
+            Settings::get().sfxVolume = _sfxVolume;
+            Settings::get().save();
+        }
+
+        _draggingMusicSlider = false;
+        _draggingSfxSlider = false;
+        _draggingFpsSlider = false;
+
+        if (_heldBtn != BTN_COUNT) {
+            ButtonId releaseHit = _checkButtonHit(virtX, virtY);
+            ButtonId active = _heldBtn;
+            bool wasPressed = _isButtonPressed;
+
+            _heldBtn = BTN_COUNT;
+            _isButtonPressed = false;
+            _btnAnims[active].release();
+
+            if (wasPressed && (releaseHit == active || releaseHit == BTN_COUNT)) {
+                switch (active) {
+                    case BTN_INFO_CLOSE: _showInfoPopup = false; break;
+                    case BTN_INFO_YT: openURL("https://www.youtube.com/watch?v=JhKyKEDxo8Q"); break;
+                    case BTN_SETTINGS_CLOSE: _showSettingsPopup = false; break;
+                    case BTN_MENU_SETTINGS: _showSettingsPopup = true; break;
+                    case BTN_MENU_INFO: _showInfoPopup = true; break;
+                    #if defined(_WIN32)
+                    case BTN_SETTINGS_RENDER_PREV:
+                        Settings::get().prevRenderer();
+                        break;
+                    case BTN_SETTINGS_RENDER_NEXT:
+                    case BTN_SETTINGS_RENDER_BOX:
+                        Settings::get().nextRenderer();
+                        break;
+                        #endif
+                    case BTN_SETTINGS_SHOW_FPS_PREV:
+                    case BTN_SETTINGS_SHOW_FPS_NEXT:
+                    case BTN_SETTINGS_SHOW_FPS_BOX:
+                        Settings::get().showFps = !Settings::get().showFps;
+                        Settings::get().save();
+                        if (Settings::get().showFps) {
+                            _lastFpsUpdateTick = SDL_GetTicks();
+                            _fpsFrameCount = 0;
+                            _fpsText = "60 FPS";
+                            _fpsDisplayText = std::string("60 FPS - ") + RenderDevice::get().getBackendName();
+                            _cachedFpsGlyphs.clear();
+                        }
+                        break;
+                    case BTN_MENU_FS:
+                    case BTN_PAUSE_FS:
+                        toggleFullscreen(window);
+                        _isFullscreen = !_isFullscreen;
+                        Settings::get().fullscreen = _isFullscreen;
+                        Settings::get().save();
+                        break;
+                    case BTN_MENU_STEAM: openURL("https://store.steampowered.com/app/322170/Geometry_Dash"); break;
+                    case BTN_MENU_GOOGLE: openURL("https://play.google.com/store/apps/details?id=com.robtopx.geometryjump&hl=en"); break;
+                    case BTN_MENU_APPLE: openURL("https://apps.apple.com/us/app/geometry-dash/id625334537"); break;
+                    case BTN_MENU_PLAY: _audio.playEffect("playSound_01"); startGame(); break;
+                    case BTN_PAUSE_PLAY: resumeGame(); break;
+                    case BTN_PAUSE_REPLAY: resumeGame(); restartLevel(); break;
+                    case BTN_PAUSE_MENU:
+                        _audio.playEffect("quitSound_01");
+                        _audio.stopMusic();
+                        _fadeState = 1;
+                        _fadeTimer = 0.0f;
+                        break;
+                    case BTN_END_REPLAY:
+                        _hideEndLayer([this]() { restartLevel(); });
+                        break;
+                    case BTN_END_MENU:
+                        _audio.playEffect("quitSound_01");
+                        _audio.stopMusic();
+                        _fadeState = 1;
+                        _fadeTimer = 0.0f;
+                        break;
+                    default: break;
+                }
+            }
+        }
+        releaseButton();
     }
+        }
 }
 
 float GameScene::_quantizeDelta(float dt) {

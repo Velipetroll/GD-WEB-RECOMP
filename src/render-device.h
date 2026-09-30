@@ -64,6 +64,12 @@ public:
     void shutdown();
 
     void setViewport(int vpX, int vpY, int vpW, int vpH, float logicalW, float logicalH);
+    int getViewportX() const { return _vpX; }
+    int getViewportY() const { return _vpY; }
+    int getViewportW() const { return _vpW; }
+    int getViewportH() const { return _vpH; }
+    float getLogicalW() const { return _logicalW; }
+    float getLogicalH() const { return _logicalH; }
     void setVSync(bool enabled);
     bool getVSync() const { return _vsync; }
 
