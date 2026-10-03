@@ -22,11 +22,24 @@ This repository contains two major milestones:
 A lightweight 1:1 C++ port replacing browser runtimes with a custom hardware abstraction layer (`RenderDevice`):
 
 ### Key Features
-* **Multi-Backend Rendering:** Native **DirectX 8** (32-bit Intel Atom/GMA FastPath), **DirectX 9** (64-bit Windows), and **OpenGL 1.1** (Linux & fallback).
+* **Multi-Backend Rendering:** Modular backends tailored to each hardware profile: **DirectX 8**, **DirectX 9**, **OpenGL 1.1**, **OpenGL ES 2.0**, and **WebGL**.
 * **Intel Atom / GMA Optimization:** Pre-transformed 2D vertices (`D3DFVF_XYZRHW`) and dynamic buffers (`D3DLOCK_DISCARD`) bypass GPU vertex-processing bottlenecks on vintage Intel GMA 950/3150 hardware.
-* **100% Static Standalone Binary:** Linked with `-static -static-libgcc -static-libstdc++`; zero external DLL dependencies in `build/`.
-* **Automated Asset Sync:** Scans `assets/` via C++17 `std::filesystem` to index textures (`.png`) and parse BMFont files (`.fnt`).
+* **100% Static Standalone Binary:** Desktop builds linked statically; zero external DLL dependencies.
+* **Automated Asset Sync:** Universal asset loading across filesystems (`assets/`) and Android packaging (`AAssetManager` / `SDL_RWops`).
 * **Native Audio & Level Decompression:** Replaces Pako.js with system `zlib`; background music streaming and zero-latency SFX powered by `miniaudio` and `stb_vorbis`.
+
+---
+
+## 📱 Supported Platforms & Graphics Backends
+
+| Platform | Architecture(s) | Graphics Backend | Backend Implementation | Typical Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Linux Desktop** | `x86_64`, `x86` | **OpenGL 1.1** (Fixed Pipeline) | [`src/render-gl1.cpp`](file:///src/render-gl1.cpp) | Modern & legacy Linux distros |
+| **Windows 32-bit** | `i686` (x86) | **Direct3D 8** / **Direct3D 9** / **OpenGL 1.1** | [`src/render-d3d8.cpp`](file:///src/render-d3d8.cpp), [`src/render-d3d9.cpp`](file:///src/render-d3d9.cpp) | Vintage netbooks, school laptops, Intel GMA |
+| **Windows 64-bit** | `x86_64` | **Direct3D 9** / **OpenGL 1.1** | [`src/render-d3d9.cpp`](file:///src/render-d3d9.cpp), [`src/render-gl1.cpp`](file:///src/render-gl1.cpp) | Modern Windows 7/10/11 PCs |
+| **Android** | `arm64-v8a`, `armeabi-v7a`, `x86_64` | **OpenGL ES 2.0** (GLSL ES 1.00 Shaders) | [`src/render-webgl.cpp`](file:///src/render-webgl.cpp) | Android 5.0+ phones, tablets, TV, emulators |
+| **Web (Wasm)** | `wasm32` | **WebGL 1.0 / 2.0** | [`src/render-webgl.cpp`](file:///src/render-webgl.cpp) | Modern desktop and mobile web browsers |
+| **macOS** | `x86_64`, `arm64` | **OpenGL** (Legacy Compatibility) | [`src/render-gl1.cpp`](file:///src/render-gl1.cpp) | macOS via SDL2 + OpenGL framework |
 
 ---
 
@@ -35,9 +48,10 @@ A lightweight 1:1 C++ port replacing browser runtimes with a custom hardware abs
 The in-game user interface adapts dynamically depending on the operating system and binary architecture:
 
 * **Main Menu UI:** Dedicated **Settings** button in the top-right corner; **Info / Credits** button located directly below it.
-* **Configurable FPS Limiter:** Integrated in-game framerate limiter available in the Settings menu.
+* **Configurable FPS Limiter:** Integrated in-game framerate limiter available in the Settings menu (vsync, 60, 120, 144, 240, unlocked).
 * **Conditional In-Game Renderer Selector:**
-  * **Linux:** Hidden automatically (defaults exclusively to native OpenGL 1.1).
+  * **Linux / macOS:** Hidden automatically (defaults exclusively to native OpenGL).
+  * **Android / Web:** Dedicated OpenGL ES 2.0 / WebGL shaders with Premultiplied Alpha fast-path.
   * **Windows 64-bit:** Exposes **DirectX 9** and **OpenGL 1.1** (hides DirectX 8, which is unavailable in 64-bit Windows).
   * **Windows 32-bit:** Exposes **DirectX 8**, **DirectX 9**, and **OpenGL 1.1** (full manual control for vintage netbooks).
 
