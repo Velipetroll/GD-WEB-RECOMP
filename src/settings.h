@@ -29,8 +29,13 @@ public:
     float musicVolume = 1.0f;
     float sfxVolume = 1.0f;
     int fpsIndex = 8; // Default: 240 FPS
+    int qualityIndex = QUALITY_AUTO; // Default: Auto (detects GMA hardware)
     bool fullscreen = false;
     bool showFps = false;
+
+    std::vector<std::string> qualityOptions = {
+        "Auto", "Low", "Medium", "High"
+    };
 
     std::vector<FpsOption> fpsOptions = {
         { "VSync",      0,   true  }, // 0
@@ -132,9 +137,36 @@ public:
         #endif
     }
 
+    const std::string& currentQualityLabel() const {
+        int idx = std::clamp(qualityIndex, 0, (int)qualityOptions.size() - 1);
+        return qualityOptions[idx];
+    }
+
+    void nextQuality() {
+        qualityIndex = (qualityIndex + 1) % (int)qualityOptions.size();
+        gpu::presetRef() = qualityIndex;
+        RenderDevice::get().reloadTextures();
+        save();
+    }
+
+    void prevQuality() {
+        qualityIndex = (qualityIndex - 1 + (int)qualityOptions.size()) % (int)qualityOptions.size();
+        gpu::presetRef() = qualityIndex;
+        RenderDevice::get().reloadTextures();
+        save();
+    }
+
+    void setQualityIndex(int idx) {
+        qualityIndex = std::clamp(idx, 0, (int)qualityOptions.size() - 1);
+        gpu::presetRef() = qualityIndex;
+        RenderDevice::get().reloadTextures();
+        save();
+    }
+
     void load() {
         std::ifstream file("settings.cfg");
         if (!file.is_open()) {
+            gpu::presetRef() = qualityIndex;
             save();
             return;
         }
@@ -154,6 +186,7 @@ public:
                 if (key == "musicVolume") musicVolume = std::stof(val);
                 else if (key == "sfxVolume") sfxVolume = std::stof(val);
                 else if (key == "fpsIndex") fpsIndex = std::stoi(val);
+                else if (key == "quality") qualityIndex = std::stoi(val);
                 else if (key == "fullscreen") fullscreen = (val == "1" || val == "true");
                 else if (key == "showFps") showFps = (val == "1" || val == "true");
                 #if defined(_WIN32)
@@ -170,6 +203,8 @@ public:
             } catch (...) {}
         }
         fpsIndex = std::clamp(fpsIndex, 0, (int)fpsOptions.size() - 1);
+        qualityIndex = std::clamp(qualityIndex, 0, (int)qualityOptions.size() - 1);
+        gpu::presetRef() = qualityIndex;
         musicVolume = std::clamp(musicVolume, 0.0f, 1.0f);
         sfxVolume = std::clamp(sfxVolume, 0.0f, 1.0f);
         #if defined(_WIN32)
@@ -185,6 +220,7 @@ public:
         file << "musicVolume=" << musicVolume << "\n";
         file << "sfxVolume=" << sfxVolume << "\n";
         file << "fpsIndex=" << fpsIndex << "\n";
+        file << "quality=" << qualityIndex << "\n";
         file << "fullscreen=" << (fullscreen ? "1" : "0") << "\n";
         file << "showFps=" << (showFps ? "1" : "0") << "\n";
         #if defined(_WIN32)

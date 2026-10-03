@@ -24,6 +24,6 @@ public:
 
 private:
     void renderProgressBar(float progress);
-    Texture loadTextureGL(const std::string& path);
+    Texture loadTexture(const std::string& key, const std::string& path);
     std::string loadTextFile(const std::string& path);
 };

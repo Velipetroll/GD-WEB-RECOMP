@@ -45,11 +45,6 @@ inline BlendMode blendAdd = BLEND_ADD;
 void setEngineBlendMode(BlendMode mode);
 
 inline void applyBlendMode(BlendMode mode) {
-    if (mode == BLEND_ADD) {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-    } else {
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    }
-    // Communicate blend mode to active renderer (DirectX 8 / OpenGL)
+    // Communicate blend mode to active renderer (PMA handles normal and additive without changing GPU blend state)
     setEngineBlendMode(mode);
 }

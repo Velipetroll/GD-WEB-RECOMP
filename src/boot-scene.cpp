@@ -28,7 +28,7 @@ std::string BootScene::loadTextFile(const std::string& path) {
     return buffer.str();
 }
 
-Texture BootScene::loadTextureGL(const std::string& path) {
+Texture BootScene::loadTexture(const std::string& key, const std::string& path) {
     Texture tex;
     int channels;
     stbi_set_flip_vertically_on_load(false);
@@ -38,24 +38,15 @@ Texture BootScene::loadTextureGL(const std::string& path) {
         return tex;
     }
 
-    glGenTextures(1, &tex.id);
-    glBindTexture(GL_TEXTURE_2D, tex.id);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex.width, tex.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    uint32_t texID = RenderDevice::get().registerTexture(key, tex.width, tex.height, data);
+    tex.id = (GLuint)texID;
     stbi_image_free(data);
     return tex;
 }
 
 void BootScene::renderProgressBar(float progress) {
-    glClear(GL_COLOR_BUFFER_BIT);
+    RenderDevice::get().beginFrame();
+    RenderDevice::get().clear(0.0f, 0.0f, 0.0f, 1.0f);
 
     float barTotalWidth = 0.6f * screenWidth;
     float barHeight = 8.0f;
@@ -68,9 +59,11 @@ void BootScene::renderProgressBar(float progress) {
     float startY = centerY - (barHeight * 0.5f);
 
     RenderDevice::get().drawRect(startX, startY, currentWidth, barHeight, 0.0f, 1.0f, 0.0f, 1.0f);
+    RenderDevice::get().endFrame();
 }
 
 void BootScene::preload(SDL_Window* window) {
+    (void)window;
     struct AssetTask {
         std::string key;
         std::string path;
@@ -93,16 +86,19 @@ void BootScene::preload(SDL_Window* window) {
 
     for (size_t i = 0; i < tasks.size(); ++i) {
         if (tasks[i].isTexture) {
-            textures[tasks[i].key] = loadTextureGL(tasks[i].path);
+            Texture tex = loadTexture(tasks[i].key, tasks[i].path);
+            textures[tasks[i].key] = tex;
+            textures[tasks[i].key + ".png"] = tex;
+            if (tasks[i].key == "game_bg_01") {
+                textures["game_bg_01_001"] = tex;
+                textures["game_bg_01_001.png"] = tex;
+            }
         } else {
             textCache[tasks[i].key] = loadTextFile(tasks[i].path);
         }
 
         float progress = (float)(i + 1) / (float)tasks.size();
         renderProgressBar(progress);
-        #ifndef __EMSCRIPTEN__
-        SDL_GL_SwapWindow(window);
-        #endif
     }
 }
 
@@ -114,5 +110,5 @@ void BootScene::create() {
         defineFontFromFnt("goldFont", textCache["goldFontFnt"]);
     }
 
-    std::cout << "[BootScene] Preload completed successfully." << std::endl;
+    std::cout << "[BootScene] Preload completed successfully (" << textures.size() << " texture entries registered)." << std::endl;
 }

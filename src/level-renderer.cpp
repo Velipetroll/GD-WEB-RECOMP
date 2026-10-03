@@ -990,7 +990,9 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
             float g = ((pe.color >> 8)  & 0xFF) / 255.0f;
             float b =  (pe.color        & 0xFF) / 255.0f;
 
-            for (const auto& pp : pe.particles) {
+            for (size_t pi = 0; pi < pe.particles.size(); ++pi) {
+                if (!gpu::keepParticle(pi)) continue;
+                const auto& pp = pe.particles[pi];
                 float pt = std::min(pp.life / pp.maxLife, 1.0f);
                 float curDist = 1.0f - pt;
                 float px = pe.x + pp.rx * curDist;
@@ -1008,7 +1010,9 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
     if (hasEndPortal) {
         float emitterX = endXPos - 30.0f;
         float emitterY = flipY(_endPortalGameY);
-        for (const auto& vp : _vortexParticles) {
+        for (size_t vi = 0; vi < _vortexParticles.size(); ++vi) {
+            if (!gpu::keepParticle(vi)) continue;
+            const auto& vp = _vortexParticles[vi];
             float pt = std::min(vp.life / vp.maxLife, 1.0f);
             float sc = 0.75f + (0.125f - 0.75f) * pt;
             float alpha = 1.0f - pt;

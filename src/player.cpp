@@ -665,7 +665,9 @@ void Player::_updateDust(float dt) {
 
 void Player::_renderDust(float cameraX, float cameraY) {
     if (_dustParticles.empty()) return;
-    for (const auto& dp : _dustParticles) {
+    for (size_t di = 0; di < _dustParticles.size(); ++di) {
+        if (!gpu::keepParticle(di)) continue;
+        const auto& dp = _dustParticles[di];
         float t = std::min(dp.life / dp.maxLife, 1.0f);
         float scale = dp.startScale + (dp.endScale - dp.startScale) * t;
         float alpha = 1.0f - t;
@@ -798,7 +800,9 @@ void Player::_updateShipParticles(float dt, float playerWorldX) {
 void Player::_renderShipParticles(float cameraX, float cameraY) {
     if (_shipFlames.empty() && _shipDrags.empty()) return;
 
-    for (const auto& fp : _shipFlames) {
+    for (size_t fi = 0; fi < _shipFlames.size(); ++fi) {
+        if (!gpu::keepParticle(fi)) continue;
+        const auto& fp = _shipFlames[fi];
         float t = std::min(fp.life / fp.maxLife, 1.0f);
         float sc = fp.startScale + (fp.endScale - fp.startScale) * t;
         float alpha = 1.0f - t;
@@ -810,7 +814,9 @@ void Player::_renderShipParticles(float cameraX, float cameraY) {
         drawAtlasFrame("square.png", fp.x - cameraX, fp.y + cameraY, size, size, 0.0f, r, g, b, alpha, false, false, BLEND_ADD);
     }
 
-    for (const auto& dp : _shipDrags) {
+    for (size_t di = 0; di < _shipDrags.size(); ++di) {
+        if (!gpu::keepParticle(di)) continue;
+        const auto& dp = _shipDrags[di];
         float t = std::min(dp.life / dp.maxLife, 1.0f);
         float sc = dp.startScale + (dp.endScale - dp.startScale) * t;
         float alpha = 1.0f - t;
@@ -1021,7 +1027,9 @@ void Player::render(float cameraX, float cameraY) {
             RenderDevice::get().drawCircle(_deathScreenX, _deathScreenY, _shockwaveRadius, 0.0f, 1.0f, 0.0f, _shockwaveAlpha, true, BLEND_ADD);
         }
 
-        for (const auto& tp : _pieceTrails) {
+        for (size_t ti = 0; ti < _pieceTrails.size(); ++ti) {
+            if (!gpu::keepParticle(ti)) continue;
+            const auto& tp = _pieceTrails[ti];
             float pt = tp.life / tp.maxLife;
             float scale = tp.scale * (1.0f - pt);
             float alpha = 1.0f - pt;
@@ -1029,7 +1037,9 @@ void Player::render(float cameraX, float cameraY) {
             drawAtlasFrame("square.png", tp.x, tp.y, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
         }
 
-        for (const auto& dp : _deathParticles) {
+        for (size_t di = 0; di < _deathParticles.size(); ++di) {
+            if (!gpu::keepParticle(di)) continue;
+            const auto& dp = _deathParticles[di];
             if (dp.life < dp.maxLife) {
                 float pt = dp.life / dp.maxLife;
                 float scale = dp.startScale + (dp.endScale - dp.startScale) * pt;

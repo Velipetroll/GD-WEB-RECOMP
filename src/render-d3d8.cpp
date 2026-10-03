@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 
 #define D3DFVF_D3D8_2D (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
 typedef IDirect3D8* (WINAPI *Direct3DCreate8_Fn)(UINT SDKVersion);
@@ -21,7 +22,6 @@ struct D3D8State {
     IDirect3DIndexBuffer8* ib = nullptr;
     IDirect3DTexture8* whiteTex = nullptr;
     IDirect3DTexture8* lastBoundTex = nullptr;
-    BlendMode lastBlend = (BlendMode)-1;
     size_t vbOffset = 0;
     D3DPRESENT_PARAMETERS d3dpp;
     std::unordered_map<uint32_t, IDirect3DTexture8*> textures;
@@ -30,6 +30,7 @@ struct D3D8State {
     bool bound = false;      // FVF + stream 0 already bound to the ring VB
     bool canA8L8 = false;    // lossless 16-bit white/gray + alpha textures
     bool canL8 = false;      // lossless 8-bit opaque gray textures
+    bool canA4R4G4B4 = false;// 16-bit colour textures (quality preset LOW)
 };
 
 static D3D8State s_d3d8;
@@ -54,12 +55,11 @@ static void applyD3D8States() {
     // INTEL GMA OPTIMIZATION: Disable CPU software clipping for pre-transformed vertices
     s_d3d8.device->SetRenderState(D3DRS_CLIPPING, FALSE);
 
+    // Premultiplied alpha: one fixed blend equation for normal + additive (no per-batch state changes)
     s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    s_d3d8.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    s_d3d8.device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
     s_d3d8.device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-    s_d3d8.device->SetRenderState(D3DRS_ALPHAREF, 0x01);
-    s_d3d8.device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);   // additive vertices carry alpha 0
 
     s_d3d8.device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
@@ -72,8 +72,22 @@ static void applyD3D8States() {
     s_d3d8.device->SetTextureStageState(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+    s_d3d8.device->SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+    s_d3d8.device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    s_d3d8.device->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
     s_d3d8.lastBoundTex = nullptr;
-    s_d3d8.lastBlend = (BlendMode)-1;
+    s_d3d8.bound = false;
+}
+
+static inline void bindD3D8Stream() {
+    if (s_d3d8.bound) return;
+    s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
+    s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
+    s_d3d8.bound = true;
+}
+
+static inline void ensureD3D8Scene() {
+    if (!s_d3d8.inScene) { s_d3d8.device->BeginScene(); s_d3d8.inScene = true; }
 }
 
 static void createD3D8Buffers() {
@@ -153,6 +167,22 @@ bool d3d8_init(SDL_Window* window, int windowW, int windowH, bool vsync) {
     D3DDISPLAYMODE d3ddm;
     if (FAILED(s_d3d8.d3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3ddm))) return false;
 
+    // ---- GPU detection (Intel GMA tiers, NPOT support) ----
+    GpuCaps& caps = gpu::caps();
+    D3DADAPTER_IDENTIFIER8 ident;
+    if (SUCCEEDED(s_d3d8.d3d->GetAdapterIdentifier(D3DADAPTER_DEFAULT, D3DENUM_NO_WHQL_LEVEL, &ident))) {
+        caps.name = ident.Description;
+        int t = gpu::tierFromPciId(ident.VendorId, ident.DeviceId, &caps.isIntelGMA);
+        caps.tier = (t >= 0) ? t : gpu::tierFromName(gpu::lower(ident.Description), &caps.isIntelGMA);
+    }
+    D3DCAPS8 dcaps;
+    if (SUCCEEDED(s_d3d8.d3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &dcaps))) {
+        bool pow2 = (dcaps.TextureCaps & D3DPTEXTURECAPS_POW2) != 0;
+        bool cond = (dcaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) != 0;
+        caps.npot = !pow2 || cond;
+    }
+    caps.detected = true;
+
     ZeroMemory(&s_d3d8.d3dpp, sizeof(s_d3d8.d3dpp));
     s_d3d8.vsync = vsync;
     s_d3d8.d3dpp.Windowed = TRUE;
@@ -168,10 +198,13 @@ bool d3d8_init(SDL_Window* window, int windowW, int windowH, bool vsync) {
     s_d3d8.d3dpp.FullScreen_PresentationInterval = 0;
 
     // Try Hardware Vertex Processing first (GMA 4500 / HD Graphics) and fall back to Software (GMA 950 / 3100 / 3150)
-    DWORD behavior = D3DCREATE_HARDWARE_VERTEXPROCESSING;
+    // (GMA 900/950/3100/3150 are detected up-front and go straight to software VP)
+    DWORD order[2] = { D3DCREATE_HARDWARE_VERTEXPROCESSING, D3DCREATE_SOFTWARE_VERTEXPROCESSING };
+    if (caps.isIntelGMA && caps.tier == 0) std::swap(order[0], order[1]);
+    DWORD behavior = order[0];
     HRESULT hr = s_d3d8.d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, behavior, &s_d3d8.d3dpp, &s_d3d8.device);
     if (FAILED(hr)) {
-        behavior = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+        behavior = order[1];
         hr = s_d3d8.d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, behavior, &s_d3d8.d3dpp, &s_d3d8.device);
         if (FAILED(hr)) {
             hr = s_d3d8.d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, hWnd, behavior, &s_d3d8.d3dpp, &s_d3d8.device);
@@ -183,11 +216,14 @@ bool d3d8_init(SDL_Window* window, int windowW, int windowH, bool vsync) {
                                                              0, D3DRTYPE_TEXTURE, D3DFMT_A8L8));
     s_d3d8.canL8   = SUCCEEDED(s_d3d8.d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, s_d3d8.d3dpp.BackBufferFormat,
                                                              0, D3DRTYPE_TEXTURE, D3DFMT_L8));
+    s_d3d8.canA4R4G4B4 = SUCCEEDED(s_d3d8.d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, s_d3d8.d3dpp.BackBufferFormat,
+                                                                 0, D3DRTYPE_TEXTURE, D3DFMT_A4R4G4B4));
 
     applyD3D8States();
     createD3D8WhiteTex();
     createD3D8Buffers();
-    std::cout << "[RenderDevice] Direct3D 8 initialized successfully (Intel GMA Circular Ring FastPath 32-bit).\n";
+    std::cout << "[RenderDevice] Direct3D 8 initialized (" << caps.name << " | tier " << caps.tier
+              << " | NPOT " << (caps.npot ? "yes" : "no") << " | quality " << gpu::presetName(gpu::resolvedPreset()) << ").\n";
     return true;
 }
 
@@ -228,8 +264,7 @@ void d3d8_beginFrame() { s_d3d8.inScene = false; }
 void d3d8_clear(float r, float g, float b, float a) {
     if (!s_d3d8.device) return;
     s_d3d8.device->Clear(0, NULL, D3DCLEAR_TARGET, toD3D8Color(r, g, b, a), 1.0f, 0);
-    s_d3d8.device->BeginScene();
-    s_d3d8.inScene = true;
+    ensureD3D8Scene();
 }
 
 void d3d8_endFrame() {
@@ -238,32 +273,19 @@ void d3d8_endFrame() {
     s_d3d8.device->Present(NULL, NULL, NULL, NULL);
 }
 
-void d3d8_setBlendMode(BlendMode mode) {
-    if (!s_d3d8.device || s_d3d8.lastBlend == mode) return;
-    s_d3d8.device->SetRenderState(D3DRS_DESTBLEND, (mode == BLEND_ADD) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
-    s_d3d8.lastBlend = mode;
-}
-
-void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexID, BlendMode currentBlend) {
+void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexID) {
     if (!s_d3d8.device || !s_d3d8.vb || !s_d3d8.ib || count == 0) return;
-
-    if (!s_d3d8.inScene) {
-        s_d3d8.device->BeginScene();
-        s_d3d8.inScene = true;
-    }
+    ensureD3D8Scene();
 
     IDirect3DTexture8* tex = s_d3d8.whiteTex;
     if (currentTexID != 0) {
         auto it = s_d3d8.textures.find(currentTexID);
         if (it != s_d3d8.textures.end() && it->second) tex = it->second;
     }
-
     if (s_d3d8.lastBoundTex != tex) {
         s_d3d8.device->SetTexture(0, tex);
         s_d3d8.lastBoundTex = tex;
     }
-
-    d3d8_setBlendMode(currentBlend);
 
     // Stall-free ring buffer: continuous D3DLOCK_NOOVERWRITE, DISCARD when restarting cycle
     DWORD lockFlags = D3DLOCK_NOOVERWRITE;
@@ -274,15 +296,11 @@ void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexI
 
     D3DVertex* pLock = nullptr;
     if (SUCCEEDED(s_d3d8.vb->Lock(s_d3d8.vbOffset * sizeof(D3DVertex), count * sizeof(D3DVertex), (BYTE**)&pLock, lockFlags))) {
-        // Direct ultra-fast SIMD copy: Coordinates and colors are already prepared from batchQuad
+        // Coordinates and premultiplied colours are already prepared by batchQuad
         memcpy(pLock, buffer, count * sizeof(D3DVertex));
         s_d3d8.vb->Unlock();
 
-        if (!s_d3d8.bound) {
-            s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
-            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
-            s_d3d8.bound = true;
-        }
+        bindD3D8Stream();
         s_d3d8.device->SetIndices(s_d3d8.ib, s_d3d8.vbOffset);   // base vertex index moves with the ring offset
         UINT numPrimitives = (UINT)(count / 4) * 2;
         s_d3d8.device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, count, 0, numPrimitives);
@@ -290,19 +308,20 @@ void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexI
     }
 }
 
-void d3d8_drawCircle(float cx, float cy, float radius, float r, float g, float b, float a, bool filled, BlendMode blend, float transX, float transY, float scaleX, float scaleY) {
-    if (!s_d3d8.device) return;
-    d3d8_setBlendMode(blend);
+static inline void bindWhite() {
     if (s_d3d8.lastBoundTex != s_d3d8.whiteTex) {
         s_d3d8.device->SetTexture(0, s_d3d8.whiteTex);
         s_d3d8.lastBoundTex = s_d3d8.whiteTex;
     }
-    s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
+}
 
-    const int segments = 16;
-    DWORD color = toD3D8Color(r, g, b, a);
+void d3d8_drawCircle(float cx, float cy, float radius, uint32_t color, bool filled, int segments, float transX, float transY, float scaleX, float scaleY) {
+    if (!s_d3d8.device || !s_d3d8.vb) return;
+    ensureD3D8Scene();
+    bindWhite();
+    bindD3D8Stream();
+
     size_t count = filled ? (segments + 2) : (segments + 1);
-
     DWORD lockFlags = D3DLOCK_NOOVERWRITE;
     if (s_d3d8.vbOffset + count > D3D8_RING_VERTS) {
         s_d3d8.vbOffset = 0;
@@ -311,42 +330,25 @@ void d3d8_drawCircle(float cx, float cy, float radius, float r, float g, float b
 
     D3DVertex* pLock = nullptr;
     if (SUCCEEDED(s_d3d8.vb->Lock(s_d3d8.vbOffset * sizeof(D3DVertex), count * sizeof(D3DVertex), (BYTE**)&pLock, lockFlags))) {
-        if (filled) {
-            pLock[0] = { (cx + transX) * scaleX, (cy + transY) * scaleY, 0.5f, 1.0f, color, 0.5f, 0.5f };
-            for (int i = 0; i <= segments; ++i) {
-                float ang = (i / (float)segments) * 6.2831853f;
-                pLock[i + 1] = { (cx + transX + std::cos(ang) * radius) * scaleX,
-                    (cy + transY + std::sin(ang) * radius) * scaleY,
-                    0.5f, 1.0f, color, 0.5f, 0.5f };
-            }
-            s_d3d8.vb->Unlock();
-
-            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
-            s_d3d8.device->DrawPrimitive(D3DPT_TRIANGLEFAN, s_d3d8.vbOffset, segments);
-        } else {
-            for (int i = 0; i <= segments; ++i) {
-                float ang = (i / (float)segments) * 6.2831853f;
-                pLock[i] = { (cx + transX + std::cos(ang) * radius) * scaleX,
-                    (cy + transY + std::sin(ang) * radius) * scaleY,
-                    0.5f, 1.0f, color, 0.5f, 0.5f };
-            }
-            s_d3d8.vb->Unlock();
-
-            s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
-            s_d3d8.device->DrawPrimitive(D3DPT_LINESTRIP, s_d3d8.vbOffset, segments);
+        size_t o = 0;
+        if (filled) pLock[o++] = { (cx + transX) * scaleX, (cy + transY) * scaleY, 0.5f, 1.0f, color, 0.5f, 0.5f };
+        for (int i = 0; i <= segments; ++i) {
+            float ang = (i / (float)segments) * 6.2831853f;
+            pLock[o++] = { (cx + transX + std::cos(ang) * radius) * scaleX,
+                           (cy + transY + std::sin(ang) * radius) * scaleY,
+                           0.5f, 1.0f, color, 0.5f, 0.5f };
         }
+        s_d3d8.vb->Unlock();
+        s_d3d8.device->DrawPrimitive(filled ? D3DPT_TRIANGLEFAN : D3DPT_LINESTRIP, s_d3d8.vbOffset, segments);
         s_d3d8.vbOffset += count;
     }
 }
 
-void d3d8_drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, BlendMode blend, float transX, float transY, float scaleX, float scaleY) {
-    if (!s_d3d8.device || vertCount < 3) return;
-    d3d8_setBlendMode(blend);
-    if (s_d3d8.lastBoundTex != s_d3d8.whiteTex) {
-        s_d3d8.device->SetTexture(0, s_d3d8.whiteTex);
-        s_d3d8.lastBoundTex = s_d3d8.whiteTex;
-    }
-    s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
+void d3d8_drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, bool additive, float transX, float transY, float scaleX, float scaleY) {
+    if (!s_d3d8.device || !s_d3d8.vb || vertCount < 3) return;
+    ensureD3D8Scene();
+    bindWhite();
+    bindD3D8Stream();
 
     DWORD lockFlags = D3DLOCK_NOOVERWRITE;
     if (s_d3d8.vbOffset + vertCount > D3D8_RING_VERTS) {
@@ -361,40 +363,31 @@ void d3d8_drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size
             pLock[i].y = (coordsXY[i * 2 + 1] + transY) * scaleY;
             pLock[i].z = 0.5f;
             pLock[i].rhw = 1.0f;
-            pLock[i].color = toD3D8Color(colorsRGBA[i * 4 + 0], colorsRGBA[i * 4 + 1], colorsRGBA[i * 4 + 2], colorsRGBA[i * 4 + 3]);
+            pLock[i].color = packColorPMA(colorsRGBA[i * 4 + 0], colorsRGBA[i * 4 + 1], colorsRGBA[i * 4 + 2], colorsRGBA[i * 4 + 3], additive, false);
             pLock[i].u = 0.5f;
             pLock[i].v = 0.5f;
         }
         s_d3d8.vb->Unlock();
-
-        s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
         s_d3d8.device->DrawPrimitive(D3DPT_TRIANGLESTRIP, s_d3d8.vbOffset, (UINT)vertCount - 2);
         s_d3d8.vbOffset += vertCount;
     }
 }
 
 void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffsetY, float uvW, float uvH, float logicalW, float logicalH, float bgR, float bgG, float bgB, float scaleX, float scaleY) {
-    if (!s_d3d8.device) return;
-
-    if (!s_d3d8.inScene) {
-        s_d3d8.device->BeginScene();
-        s_d3d8.inScene = true;
-    }
+    if (!s_d3d8.device || !s_d3d8.vb) return;
+    ensureD3D8Scene();
 
     IDirect3DTexture8* tex = s_d3d8.whiteTex;
     auto it = s_d3d8.textures.find(texID);
     if (it != s_d3d8.textures.end() && it->second) tex = it->second;
 
-    s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);   // opaque full-screen pass: no per-pixel alpha test
-    s_d3d8.device->SetTexture(0, tex);
-    s_d3d8.lastBoundTex = tex;
+    s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);   // opaque full-screen pass: no blending
+    if (s_d3d8.lastBoundTex != tex) { s_d3d8.device->SetTexture(0, tex); s_d3d8.lastBoundTex = tex; }
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-    s_d3d8.device->SetVertexShader(D3DFVF_D3D8_2D);
+    bindD3D8Stream();
 
     DWORD color = toD3D8Color(bgR, bgG, bgB, 1.0f);
-
     DWORD lockFlags = D3DLOCK_NOOVERWRITE;
     if (s_d3d8.vbOffset + 4 > D3D8_RING_VERTS) {
         s_d3d8.vbOffset = 0;
@@ -408,8 +401,6 @@ void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffset
         pLock[2] = { 0.0f,              logicalH * scaleY, 0.5f, 1.0f, color, uvOffsetX,       uvOffsetY + uvH };
         pLock[3] = { logicalW * scaleX, logicalH * scaleY, 0.5f, 1.0f, color, uvOffsetX + uvW, uvOffsetY + uvH };
         s_d3d8.vb->Unlock();
-
-        s_d3d8.device->SetStreamSource(0, s_d3d8.vb, sizeof(D3DVertex));
         s_d3d8.device->DrawPrimitive(D3DPT_TRIANGLESTRIP, s_d3d8.vbOffset, 2);
         s_d3d8.vbOffset += 4;
     }
@@ -417,60 +408,48 @@ void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffset
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
     s_d3d8.device->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
     s_d3d8.device->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    s_d3d8.device->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
 }
 
-uint32_t d3d8_registerTexture(uint32_t handle, int width, int height, const void* rgbaPixels) {
+uint32_t d3d8_registerTexture(uint32_t handle, const PreparedTexture& t) {
     if (!s_d3d8.device) return handle;
 
-    const size_t texels = (size_t)width * (size_t)height;
-    const int kind = classifyRGBA(rgbaPixels, texels);
-
-    // 0 = A8R8G8B8, 1 = A8L8 (2 B/texel), 2 = L8 (1 B/texel) - all bit-exact for the classified content
+    // d3dMode: 0 = A8R8G8B8, 1 = A8L8, 2 = L8, 3 = A4R4G4B4
     int mode = 0;
-    IDirect3DTexture8* tex = nullptr;
-    if ((kind & TEXKIND_GRAY_OPAQUE) && s_d3d8.canL8 &&
-        SUCCEEDED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_L8, D3DPOOL_MANAGED, &tex))) {
-        mode = 2;
-        } else if (kind != 0 && s_d3d8.canA8L8 &&
-            SUCCEEDED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_A8L8, D3DPOOL_MANAGED, &tex))) {
-            mode = 1;
-            } else {
-                tex = nullptr;
-                if (FAILED(s_d3d8.device->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex))) tex = nullptr;
-            }
+    D3DFORMAT fmt = D3DFMT_A8R8G8B8;
+    if (t.format == PF_L8 && s_d3d8.canL8) { mode = 2; fmt = D3DFMT_L8; }
+    else if ((t.format == PF_LA8 || t.format == PF_I8) && s_d3d8.canA8L8) { mode = 1; fmt = D3DFMT_A8L8; }
+    else if (t.format == PF_RGBA4444 && s_d3d8.canA4R4G4B4) { mode = 3; fmt = D3DFMT_A4R4G4B4; }
 
-            if (tex) {
-                D3DLOCKED_RECT lr;
-                if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-                    const auto* src = (const uint8_t*)rgbaPixels;
-                    auto* dst = (uint8_t*)lr.pBits;
-                    for (int y = 0; y < height; ++y) {
-                        const auto* srcRow = (const uint32_t*)(src + (size_t)y * width * 4);
-                        if (mode == 2) {
-                            auto* dstRow = dst + (size_t)y * lr.Pitch;
-                            for (int x = 0; x < width; ++x) dstRow[x] = (uint8_t)(srcRow[x] & 0xFF);
-                        } else if (mode == 1) {
-                            auto* dstRow = (uint16_t*)(dst + (size_t)y * lr.Pitch);
-                            for (int x = 0; x < width; ++x) {
-                                uint32_t c = srcRow[x];
-                                dstRow[x] = (uint16_t)(((c >> 24) << 8) | (c & 0xFF));
-                            }
-                        } else {
-                            auto* dstRow = (uint32_t*)(dst + (size_t)y * lr.Pitch);
-                            for (int x = 0; x < width; ++x) {
-                                uint32_t c = srcRow[x];
-                                dstRow[x] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);  // RGBA -> ARGB
-                            }
-                        }
-                    }
-                    tex->UnlockRect(0);
-                    s_d3d8.textures[handle] = tex;
-                } else {
-                    tex->Release();
-                }
-            }
-            return handle;
+    IDirect3DTexture8* tex = nullptr;
+    if (FAILED(s_d3d8.device->CreateTexture(t.width, t.height, 1, 0, fmt, D3DPOOL_MANAGED, &tex))) {
+        tex = nullptr; mode = 0;
+        if (FAILED(s_d3d8.device->CreateTexture(t.width, t.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex))) tex = nullptr;
+    }
+    if (tex) {
+        D3DLOCKED_RECT lr;
+        if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
+            writeD3DTexels(t, mode, lr.pBits, lr.Pitch);
+            tex->UnlockRect(0);
+            s_d3d8.textures[handle] = tex;
+        } else {
+            tex->Release();
+        }
+    }
+    return handle;
+}
+
+void d3d8_reloadTexture(uint32_t handle, const PreparedTexture& t) {
+    if (!s_d3d8.device) return;
+    auto it = s_d3d8.textures.find(handle);
+    if (it != s_d3d8.textures.end() && it->second) {
+        if (s_d3d8.lastBoundTex == it->second) {
+            s_d3d8.lastBoundTex = nullptr;
+            s_d3d8.device->SetTexture(0, s_d3d8.whiteTex);
+        }
+        it->second->Release();
+        s_d3d8.textures.erase(it);
+    }
+    d3d8_registerTexture(handle, t);
 }
 
 #else
@@ -482,10 +461,10 @@ void d3d8_setVSync(bool) {}
 void d3d8_beginFrame() {}
 void d3d8_clear(float, float, float, float) {}
 void d3d8_endFrame() {}
-void d3d8_setBlendMode(BlendMode) {}
-void d3d8_flushBatch(const D3DVertex*, size_t, uint32_t, BlendMode) {}
-void d3d8_drawCircle(float, float, float, float, float, float, float, bool, BlendMode, float, float, float, float) {}
-void d3d8_drawTriangleStrip(const float*, const float*, size_t, BlendMode, float, float, float, float) {}
+void d3d8_flushBatch(const D3DVertex*, size_t, uint32_t) {}
+void d3d8_drawCircle(float, float, float, uint32_t, bool, int, float, float, float, float) {}
+void d3d8_drawTriangleStrip(const float*, const float*, size_t, bool, float, float, float, float) {}
 void d3d8_drawRepeatedBackground(uint32_t, float, float, float, float, float, float, float, float, float, float, float) {}
-uint32_t d3d8_registerTexture(uint32_t handle, int, int, const void*) { return handle; }
+uint32_t d3d8_registerTexture(uint32_t handle, const PreparedTexture&) { return handle; }
+void d3d8_reloadTexture(uint32_t, const PreparedTexture&) {}
 #endif

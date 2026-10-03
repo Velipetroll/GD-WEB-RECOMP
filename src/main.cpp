@@ -213,11 +213,8 @@ int main(int argc, char* argv[]) {
     BootScene bootScene;
     bootScene.preload(window);
 
-    if (RenderDevice::get().getBackend() == RENDERER_OPENGL) {
-        bootScene.create();
-    } else {
-        RenderDevice::get().syncTexturesFromBootScene();
-    }
+    bootScene.create();
+    RenderDevice::get().syncTexturesFromBootScene();
 
     if (BootScene::textCache.find("GJ_WebSheetJson") != BootScene::textCache.end()) {
         Texture tex = BootScene::textures["GJ_WebSheet"];

@@ -63,6 +63,9 @@ enum ButtonId {
     BTN_SETTINGS_RENDER_PREV,
     BTN_SETTINGS_RENDER_NEXT,
     BTN_SETTINGS_RENDER_BOX,
+    BTN_SETTINGS_QUALITY_PREV,
+    BTN_SETTINGS_QUALITY_NEXT,
+    BTN_SETTINGS_QUALITY_BOX,
     BTN_SETTINGS_SHOW_FPS_PREV,
     BTN_SETTINGS_SHOW_FPS_NEXT,
     BTN_SETTINGS_SHOW_FPS_BOX,
@@ -146,6 +149,24 @@ struct HitBox {
     }
 };
 
+struct SettingsLayout {
+    float popupW = 0.0f;
+    float popupH = 0.0f;
+    float topY = 0.0f;
+    float titleY = 0.0f;
+    float closeY = 0.0f;
+    float fpsY = 0.0f;
+    #if defined(_WIN32)
+    float rendY = 0.0f;
+    #endif
+    float qualY = 0.0f;
+    float showFpsY = 0.0f;
+    float sliderScale = 0.0f;
+    float sliderTrackWidth = 0.0f;
+    float sliderHalfGrooveW = 0.0f;
+    float sliderStartX = 0.0f;
+};
+
 class GameScene {
 public:
     GameScene();
@@ -184,6 +205,8 @@ private:
     void _renderNewBest();
     void _hideEndLayer(std::function<void()> onComplete);
 
+    SettingsLayout _getSettingsLayout() const;
+
     HitBox _getButtonHitBox(const std::string& frameName, float cx, float cy, ButtonId id, float baseScale, float expandFactor);
     ButtonId _checkButtonHit(float vx, float vy);
     float _getBaseScale(ButtonId id) const;
@@ -201,7 +224,7 @@ private:
 
     void _renderSlider(float centerX, float centerY, float progress, bool isDragging,
                        const std::string& iconName, const std::string& textLabel,
-                       const std::string& valueText);
+                       const std::string& valueText, float customGrooveScale = -1.0f);
 
     PlayerPhysicsState _state;
     std::unique_ptr<LevelRenderer> _level;

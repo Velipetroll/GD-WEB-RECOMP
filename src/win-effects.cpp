@@ -118,7 +118,9 @@ void WinEffects::render() {
         if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
     }
 
-    for (const auto& p : particles) {
+    for (size_t pi = 0; pi < particles.size(); ++pi) {
+        if (!gpu::keepParticle(pi)) continue;
+        const auto& p = particles[pi];
         if (p.delay > 0.0f || p.done) continue;
 
         float t = (p.maxLife > 0.0f) ? std::min(p.life / p.maxLife, 1.0f) : 1.0f;

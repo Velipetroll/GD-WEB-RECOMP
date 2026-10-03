@@ -148,6 +148,9 @@ void GameScene::init() {
     _btnAnims[BTN_SETTINGS_RENDER_PREV].init(1.0f);
     _btnAnims[BTN_SETTINGS_RENDER_NEXT].init(1.0f);
     _btnAnims[BTN_SETTINGS_RENDER_BOX].init(1.0f);
+    _btnAnims[BTN_SETTINGS_QUALITY_PREV].init(1.0f);
+    _btnAnims[BTN_SETTINGS_QUALITY_NEXT].init(1.0f);
+    _btnAnims[BTN_SETTINGS_QUALITY_BOX].init(1.0f);
     _btnAnims[BTN_SETTINGS_SHOW_FPS_PREV].init(1.0f);
     _btnAnims[BTN_SETTINGS_SHOW_FPS_NEXT].init(1.0f);
     _btnAnims[BTN_SETTINGS_SHOW_FPS_BOX].init(1.0f);
@@ -396,46 +399,82 @@ HitBox GameScene::_getButtonHitBox(const std::string& frameName, float cx, float
     return { cx, cy, totalW * 0.5f, totalH * 0.5f };
 }
 
+SettingsLayout GameScene::_getSettingsLayout() const {
+    SettingsLayout l;
+    float guiScale = getGuiScale();
+    float midX = screenWidth * 0.5f;
+
+    #if defined(_WIN32)
+    const float basePopupH = 390.0f;
+    #else
+    const float basePopupH = 320.0f;
+    #endif
+
+    l.popupW = 480.0f * guiScale;
+    l.popupH = basePopupH * guiScale;
+    l.topY = 320.0f - (l.popupH * 0.5f);
+    l.closeY = l.topY + 24.0f * guiScale;
+    l.titleY = l.topY + 36.0f * guiScale;
+    l.fpsY = l.topY + 98.0f * guiScale;
+
+    #if defined(_WIN32)
+    l.rendY = l.topY + 168.0f * guiScale;
+    l.qualY = l.topY + 240.0f * guiScale;
+    l.showFpsY = l.topY + 312.0f * guiScale;
+    #else
+    l.qualY = l.topY + 176.0f * guiScale;
+    l.showFpsY = l.topY + 252.0f * guiScale;
+    #endif
+
+    l.sliderScale = 0.58f * guiScale;
+    const AtlasFrame* grooveAf = findAtlasFrame("slidergroove.png");
+    const float origGrooveW = (grooveAf && grooveAf->w > 0.0f) ? grooveAf->w : 420.0f;
+    l.sliderTrackWidth = (origGrooveW - 8.0f) * l.sliderScale;
+    l.sliderHalfGrooveW = (origGrooveW * l.sliderScale) * 0.5f;
+    l.sliderStartX = midX - l.sliderHalfGrooveW + 2.8f * (l.sliderScale / 0.7f);
+
+    return l;
+}
+
 ButtonId GameScene::_checkButtonHit(float vx, float vy) {
     float midX = screenWidth * 0.5f;
     float guiScale = getGuiScale();
 
     // 1. Settings Popup
     if (_showSettingsPopup) {
-        #if defined(_WIN32)
-        const float basePopupH = 340.0f;
-        #else
-        const float basePopupH = 260.0f;
-        #endif
-        const float popupH = basePopupH * guiScale;
-        float closeY = 320.0f - (popupH * 0.5f) + 24.0f * guiScale;
-        HitBox closeBox = _getButtonHitBox("GJ_closeBtn_001.png", midX - 220.0f * guiScale, closeY, BTN_SETTINGS_CLOSE, guiScale, 2.0f);
+        SettingsLayout l = _getSettingsLayout();
+        HitBox closeBox = _getButtonHitBox("GJ_closeBtn_001.png", midX - 220.0f * guiScale, l.closeY, BTN_SETTINGS_CLOSE, guiScale, 2.0f);
         if (closeBox.contains(vx, vy)) return BTN_SETTINGS_CLOSE;
 
         #if defined(_WIN32)
         if (!Settings::get().rendererOptions.empty()) {
-            float rendY = 320.0f - (popupH * 0.5f) + 172.0f * guiScale;
-            HitBox prevBox = { midX - 115.0f * guiScale, rendY, 24.0f * guiScale, 22.0f * guiScale };
+            HitBox prevBox = { midX - 115.0f * guiScale, l.rendY, 24.0f * guiScale, 22.0f * guiScale };
             if (prevBox.contains(vx, vy)) return BTN_SETTINGS_RENDER_PREV;
 
-            HitBox nextBox = { midX + 115.0f * guiScale, rendY, 24.0f * guiScale, 22.0f * guiScale };
+            HitBox nextBox = { midX + 115.0f * guiScale, l.rendY, 24.0f * guiScale, 22.0f * guiScale };
             if (nextBox.contains(vx, vy)) return BTN_SETTINGS_RENDER_NEXT;
 
-            HitBox boxHit = { midX, rendY, 85.0f * guiScale, 18.0f * guiScale };
+            HitBox boxHit = { midX, l.rendY, 85.0f * guiScale, 18.0f * guiScale };
             if (boxHit.contains(vx, vy)) return BTN_SETTINGS_RENDER_BOX;
         }
-        float showFpsY = 320.0f - (popupH * 0.5f) + 252.0f * guiScale;
-        #else
-        float showFpsY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
         #endif
 
-        HitBox prevFpsBox = { midX - 85.0f * guiScale, showFpsY, 26.0f * guiScale, 24.0f * guiScale };
+        HitBox prevQualBox = { midX - 95.0f * guiScale, l.qualY, 26.0f * guiScale, 22.0f * guiScale };
+        if (prevQualBox.contains(vx, vy)) return BTN_SETTINGS_QUALITY_PREV;
+
+        HitBox nextQualBox = { midX + 95.0f * guiScale, l.qualY, 26.0f * guiScale, 22.0f * guiScale };
+        if (nextQualBox.contains(vx, vy)) return BTN_SETTINGS_QUALITY_NEXT;
+
+        HitBox boxQualHit = { midX, l.qualY, 90.0f * guiScale, 20.0f * guiScale };
+        if (boxQualHit.contains(vx, vy)) return BTN_SETTINGS_QUALITY_BOX;
+
+        HitBox prevFpsBox = { midX - 85.0f * guiScale, l.showFpsY, 26.0f * guiScale, 24.0f * guiScale };
         if (prevFpsBox.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_PREV;
 
-        HitBox nextFpsBox = { midX + 85.0f * guiScale, showFpsY, 26.0f * guiScale, 24.0f * guiScale };
+        HitBox nextFpsBox = { midX + 85.0f * guiScale, l.showFpsY, 26.0f * guiScale, 24.0f * guiScale };
         if (nextFpsBox.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_NEXT;
 
-        HitBox boxFpsHit = { midX, showFpsY, 120.0f * guiScale, 24.0f * guiScale };
+        HitBox boxFpsHit = { midX, l.showFpsY, 120.0f * guiScale, 24.0f * guiScale };
         if (boxFpsHit.contains(vx, vy)) return BTN_SETTINGS_SHOW_FPS_BOX;
 
         return BTN_COUNT;
@@ -680,22 +719,24 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
     const float halfGrooveW = (origGrooveW * grooveScale) * 0.5f;
 
     if (isDown) {
-        if (_showSettingsPopup) {
-            float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
-            #if defined(_WIN32)
-            const float basePopupH = 340.0f;
-            #else
-            const float basePopupH = 260.0f;
-            #endif
-            float fpsY = 320.0f - (basePopupH * guiScale * 0.5f) + 114.0f * guiScale;
-            if (virtX >= fpsStartX - 25.0f * guiScale && virtX <= fpsStartX + trackWidth + 25.0f * guiScale &&
-                virtY >= fpsY - 25.0f * guiScale && virtY <= fpsY + 25.0f * guiScale) {
-                _draggingFpsSlider = true;
-            float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
-            int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
-            Settings::get().setFpsIndex(stepIdx);
+        ButtonId hit = _checkButtonHit(virtX, virtY);
+        if (hit != BTN_COUNT) {
+            _heldBtn = hit;
+            _isButtonPressed = true;
+            _btnAnims[hit].press(_getBaseScale(hit));
             return;
-                }
+        }
+
+        if (_showSettingsPopup) {
+            SettingsLayout l = _getSettingsLayout();
+            if (virtX >= l.sliderStartX - 15.0f * guiScale && virtX <= l.sliderStartX + l.sliderTrackWidth + 15.0f * guiScale &&
+                virtY >= l.fpsY - 14.0f * guiScale && virtY <= l.fpsY + 14.0f * guiScale) {
+                _draggingFpsSlider = true;
+                float rawVal = std::clamp((virtX - l.sliderStartX) / l.sliderTrackWidth, 0.0f, 1.0f);
+                int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
+                Settings::get().setFpsIndex(stepIdx);
+                return;
+            }
         }
 
         if (_paused && !_showSettingsPopup && !_showEndLayerUI) {
@@ -704,30 +745,22 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
             if (virtX >= musicStartX - 25.0f * guiScale && virtX <= musicStartX + trackWidth + 25.0f * guiScale &&
                 virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
                 _draggingMusicSlider = true;
-            float val = std::clamp((virtX - musicStartX) / trackWidth, 0.0f, 1.0f);
-            if (val < 0.03f) val = 0.0f;
-            _audio.setUserMusicVolume(val);
+                float val = std::clamp((virtX - musicStartX) / trackWidth, 0.0f, 1.0f);
+                if (val < 0.03f) val = 0.0f;
+                _audio.setUserMusicVolume(val);
                 return;
-                }
+            }
 
-                float sfxStartX = (midX + 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
-                if (virtX >= sfxStartX - 25.0f * guiScale && virtX <= sfxStartX + trackWidth + 25.0f * guiScale &&
-                    virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
-                    _draggingSfxSlider = true;
+            float sfxStartX = (midX + 220.0f * guiScale) - halfGrooveW + 2.8f * guiScale;
+            if (virtX >= sfxStartX - 25.0f * guiScale && virtX <= sfxStartX + trackWidth + 25.0f * guiScale &&
+                virtY >= sliderY - 25.0f * guiScale && virtY <= sliderY + 25.0f * guiScale) {
+                _draggingSfxSlider = true;
                 float val = std::clamp((virtX - sfxStartX) / trackWidth, 0.0f, 1.0f);
                 if (val < 0.03f) val = 0.0f;
                 _sfxVolume = val;
-                    _audio.setSfxVolume(_sfxVolume);
-                    return;
-                    }
-        }
-
-        ButtonId hit = _checkButtonHit(virtX, virtY);
-        if (hit != BTN_COUNT) {
-            _heldBtn = hit;
-            _isButtonPressed = true;
-            _btnAnims[hit].press(_getBaseScale(hit));
-            return;
+                _audio.setSfxVolume(_sfxVolume);
+                return;
+            }
         }
 
         if (_showSettingsPopup || _showInfoPopup) return;
@@ -751,8 +784,8 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
         }
     } else if (isMotion) {
         if (_showSettingsPopup && _draggingFpsSlider) {
-            float fpsStartX = midX - halfGrooveW + 2.8f * guiScale;
-            float rawVal = std::clamp((virtX - fpsStartX) / trackWidth, 0.0f, 1.0f);
+            SettingsLayout l = _getSettingsLayout();
+            float rawVal = std::clamp((virtX - l.sliderStartX) / l.sliderTrackWidth, 0.0f, 1.0f);
             int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
             Settings::get().setFpsIndex(stepIdx);
             return;
@@ -820,7 +853,14 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
                     case BTN_SETTINGS_RENDER_BOX:
                         Settings::get().nextRenderer();
                         break;
-                        #endif
+                    #endif
+                    case BTN_SETTINGS_QUALITY_PREV:
+                        Settings::get().prevQuality();
+                        break;
+                    case BTN_SETTINGS_QUALITY_NEXT:
+                    case BTN_SETTINGS_QUALITY_BOX:
+                        Settings::get().nextQuality();
+                        break;
                     case BTN_SETTINGS_SHOW_FPS_PREV:
                     case BTN_SETTINGS_SHOW_FPS_NEXT:
                     case BTN_SETTINGS_SHOW_FPS_BOX:
@@ -970,7 +1010,9 @@ void GameScene::_renderCompleteLightRays() {
     float originX = _level->endXPos - _cameraX + 60.0f;
     float originY = flipY(_endPortalGameY) + _cameraY;
 
-    for (const auto& ray : _lightRays) {
+    for (size_t ri = 0; ri < _lightRays.size(); ++ri) {
+        if (!gpu::keepParticle(ri)) continue;
+        const auto& ray = _lightRays[ri];
         if (!ray.started || ray.done || ray.currentAlpha <= 0.0f) continue;
 
         float rad = ray.angleDeg * 0.0174532925f;
@@ -1557,7 +1599,9 @@ void GameScene::render() {
         _renderCompleteLightRays();
 
         if (!_flightGlitters.empty()) {
-            for (const auto& fg : _flightGlitters) {
+            for (size_t gi = 0; gi < _flightGlitters.size(); ++gi) {
+                if (!gpu::keepParticle(gi)) continue;
+                const auto& fg = _flightGlitters[gi];
                 float pt = fg.life / fg.maxLife;
                 float sc = fg.scale * (1.0f - pt);
                 float alpha = 1.0f - pt;
@@ -1576,7 +1620,7 @@ void GameScene::render() {
 
     WinEffects::render();
 
-    if (_flashAlpha > 0.0f) {
+    if (_flashAlpha > 0.0f && gpu::knobs().fullscreenFlash) {
         RenderDevice::get().drawRect(0.0f, 0.0f, screenWidth, screenHeight,
                                      0.3f, 1.0f, 0.5f, _flashAlpha * 0.9f, BLEND_ADD);
     }
@@ -1766,10 +1810,10 @@ void GameScene::_renderMenu() {
 
 void GameScene::_renderSlider(float centerX, float centerY, float progress, bool isDragging,
                               const std::string& iconName, const std::string& textLabel,
-                              const std::string& valueText)
+                              const std::string& valueText, float customGrooveScale)
 {
     float guiScale = getGuiScale();
-    const float grooveScale = 0.7f * guiScale;
+    const float grooveScale = (customGrooveScale > 0.0f) ? customGrooveScale : (0.7f * guiScale);
     const AtlasFrame* grooveAf = findAtlasFrame("slidergroove.png");
     const float origGrooveW = (grooveAf && grooveAf->w > 0.0f) ? grooveAf->w : 420.0f;
     const float origGrooveH = (grooveAf && grooveAf->h > 0.0f) ? grooveAf->h : 24.0f;
@@ -1778,7 +1822,8 @@ void GameScene::_renderSlider(float centerX, float centerY, float progress, bool
     const float trackWidth = (origGrooveW - 8.0f) * grooveScale;
     const float barH = 16.0f * grooveScale; // Exactly 11.2f * guiScale to preserve aspect ratio with slidergroove
 
-    const float trackStartX = centerX - (origGrooveW * grooveScale) * 0.5f + 2.8f * guiScale;
+    const float startOffset = 2.8f * (customGrooveScale > 0.0f ? (customGrooveScale / 0.7f) : guiScale);
+    const float trackStartX = centerX - (origGrooveW * grooveScale) * 0.5f + startOffset;
     const float clampedProg = std::clamp(progress, 0.0f, 1.0f);
     const float fillW = (clampedProg < 0.01f) ? 0.0f : (clampedProg * trackWidth);
 
@@ -1788,11 +1833,15 @@ void GameScene::_renderSlider(float centerX, float centerY, float progress, bool
         float iconH = (iconAf && iconAf->h > 0.0f) ? iconAf->h * 1.2f * guiScale : 43.2f * guiScale;
         drawAtlasFrame(iconName, centerX - 185.0f * guiScale, centerY, iconW, iconH);
     } else if (!textLabel.empty()) {
-        drawBitmapText("bigFont", textLabel, centerX - 185.0f * guiScale, centerY - 2.0f * guiScale, 0.50f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
+        float labelX = (customGrooveScale > 0.0f) ? (centerX - (grooveW * 0.5f) - 30.0f * guiScale) : (centerX - 185.0f * guiScale);
+        float labelScale = (customGrooveScale > 0.0f) ? 0.44f * guiScale : 0.50f * guiScale;
+        drawBitmapText("bigFont", textLabel, labelX, centerY - 2.0f * guiScale, labelScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
     }
 
     if (!valueText.empty()) {
-        drawBitmapText("bigFont", valueText, centerX, centerY - 22.0f * guiScale, 0.45f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
+        float valY = (customGrooveScale > 0.0f) ? (centerY - 18.0f * guiScale) : (centerY - 22.0f * guiScale);
+        float valScale = (customGrooveScale > 0.0f) ? 0.40f * guiScale : 0.45f * guiScale;
+        drawBitmapText("bigFont", valueText, centerX, valY, valScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
     }
 
     if (fillW > 0.0f) {
@@ -1970,64 +2019,66 @@ void GameScene::_renderSettingsPopup() {
     float midX = screenWidth * 0.5f;
     RenderDevice::get().drawRect(0.0f, 0.0f, screenWidth, screenHeight, 0.0f, 0.0f, 0.0f, 100.0f / 255.0f);
 
-    #if defined(_WIN32)
-    const float basePopupH = 340.0f;
-    #else
-    const float basePopupH = 260.0f;
-    #endif
-    const float popupW = 480.0f * guiScale;
-    const float popupH = basePopupH * guiScale;
+    SettingsLayout l = _getSettingsLayout();
 
-    drawScale9("GJ_square02", midX, 320.0f, popupW, popupH, 52.0f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f);
+    drawScale9("GJ_square02", midX, 320.0f, l.popupW, l.popupH, 52.0f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f);
 
     const AtlasFrame* closeAf = findAtlasFrame("GJ_closeBtn_001.png");
     float closeSc = _btnAnims[BTN_SETTINGS_CLOSE].scale * guiScale;
     float cw = (closeAf ? closeAf->w : 40.0f) * closeSc;
     float ch = (closeAf ? closeAf->h : 40.0f) * closeSc;
-    float closeY = 320.0f - (popupH * 0.5f) + 24.0f * guiScale;
-    drawAtlasFrame("GJ_closeBtn_001.png", midX - 220.0f * guiScale, closeY, cw, ch);
+    drawAtlasFrame("GJ_closeBtn_001.png", midX - 220.0f * guiScale, l.closeY, cw, ch);
 
     // "Settings" Title
-    float titleY = 320.0f - (popupH * 0.5f) + 38.0f * guiScale;
-    drawBitmapText("bigFont", "Settings", midX, titleY, 0.70f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
+    drawBitmapText("bigFont", "Settings", midX, l.titleY, 0.70f * guiScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
 
     // 1. FPS Limiter
     float fpsProgress = (float)Settings::get().fpsIndex / (float)(Settings::get().fpsOptions.size() - 1);
-    float fpsY = 320.0f - (popupH * 0.5f) + 104.0f * guiScale;
-    _renderSlider(midX, fpsY, fpsProgress, _draggingFpsSlider,
-                  "", "FPS", Settings::get().currentFps().label);
+    _renderSlider(midX, l.fpsY, fpsProgress, _draggingFpsSlider,
+                  "", "FPS", Settings::get().currentFps().label, l.sliderScale);
 
     // 2. Graphics Renderer Selector (Windows only)
     #if defined(_WIN32)
     if (!Settings::get().rendererOptions.empty()) {
-        float rendY = 320.0f - (popupH * 0.5f) + 172.0f * guiScale;
-        drawBitmapText("goldFont", "Renderer", midX, rendY - 26.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
+        drawBitmapText("goldFont", "Renderer", midX, l.rendY - 26.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
 
         float prevScale = _btnAnims[BTN_SETTINGS_RENDER_PREV].scale * guiScale;
         float nextScale = _btnAnims[BTN_SETTINGS_RENDER_NEXT].scale * guiScale;
-        drawBitmapText("bigFont", "<", midX - 115.0f * guiScale, rendY, 0.60f * prevScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
-        drawBitmapText("bigFont", ">", midX + 115.0f * guiScale, rendY, 0.60f * nextScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+        drawBitmapText("bigFont", "<", midX - 115.0f * guiScale, l.rendY, 0.60f * prevScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+        drawBitmapText("bigFont", ">", midX + 115.0f * guiScale, l.rendY, 0.60f * nextScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
 
         std::string rendLabel = Settings::get().currentRendererLabel();
         float boxScale = _btnAnims[BTN_SETTINGS_RENDER_BOX].scale * guiScale;
-        drawBitmapText("bigFont", rendLabel, midX, rendY + 3.0f * guiScale, 0.50f * boxScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
+        drawBitmapText("bigFont", rendLabel, midX, l.rendY + 3.0f * guiScale, 0.50f * boxScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
 
         if (Settings::get().currentBackend() != RenderDevice::get().getBackend()) {
-            drawBitmapText("goldFont", "(Restart game to apply)", midX, rendY + 28.0f * guiScale, 0.38f * guiScale, 1.0f, 0.45f, 0.35f, 1.0f, true);
+            drawBitmapText("goldFont", "(Restart game to apply)", midX, l.rendY + 28.0f * guiScale, 0.38f * guiScale, 1.0f, 0.45f, 0.35f, 1.0f, true);
         }
     }
-    float showFpsY = 320.0f - (popupH * 0.5f) + 252.0f * guiScale;
-    #else
-    float showFpsY = 320.0f - (popupH * 0.5f) + 185.0f * guiScale;
     #endif
 
-    // 3. Show FPS Toggle
-    drawBitmapText("goldFont", "Show FPS", midX, showFpsY - 24.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
+    // 3. Graphics Quality Selector
+    drawBitmapText("goldFont", "Quality", midX, l.qualY - 26.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
+
+    float prevQualScale = _btnAnims[BTN_SETTINGS_QUALITY_PREV].scale * guiScale;
+    float nextQualScale = _btnAnims[BTN_SETTINGS_QUALITY_NEXT].scale * guiScale;
+    drawBitmapText("bigFont", "<", midX - 95.0f * guiScale, l.qualY, 0.60f * prevQualScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+    drawBitmapText("bigFont", ">", midX + 95.0f * guiScale, l.qualY, 0.60f * nextQualScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+
+    std::string qualLabel = Settings::get().currentQualityLabel();
+    if (Settings::get().qualityIndex == QUALITY_AUTO) {
+        qualLabel += " (" + std::string(gpu::presetName(gpu::resolvedPreset())) + ")";
+    }
+    float qualBoxScale = _btnAnims[BTN_SETTINGS_QUALITY_BOX].scale * guiScale;
+    drawBitmapText("bigFont", qualLabel, midX, l.qualY + 3.0f * guiScale, 0.46f * qualBoxScale, 1.0f, 1.0f, 1.0f, 1.0f, true);
+
+    // 4. Show FPS Toggle
+    drawBitmapText("goldFont", "Show FPS", midX, l.showFpsY - 24.0f * guiScale, 0.50f * guiScale, 1.0f, 0.85f, 0.2f, 1.0f, true);
 
     float prevFpsScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_PREV].scale * guiScale;
     float nextFpsScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_NEXT].scale * guiScale;
-    drawBitmapText("bigFont", "<", midX - 85.0f * guiScale, showFpsY, 0.60f * prevFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
-    drawBitmapText("bigFont", ">", midX + 85.0f * guiScale, showFpsY, 0.60f * nextFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+    drawBitmapText("bigFont", "<", midX - 85.0f * guiScale, l.showFpsY, 0.60f * prevFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
+    drawBitmapText("bigFont", ">", midX + 85.0f * guiScale, l.showFpsY, 0.60f * nextFpsScale, 1.0f, 0.9f, 0.2f, 1.0f, true);
 
     bool isFpsOn = Settings::get().showFps;
     std::string fpsToggleLabel = isFpsOn ? "Enabled" : "Disabled";
@@ -2036,7 +2087,7 @@ void GameScene::_renderSettingsPopup() {
     float fb = isFpsOn ? 0.35f : 0.40f;
 
     float fpsBoxScale = _btnAnims[BTN_SETTINGS_SHOW_FPS_BOX].scale * guiScale;
-    drawBitmapText("bigFont", fpsToggleLabel, midX, showFpsY + 3.0f * guiScale, 0.50f * fpsBoxScale, fr, fg, fb, 1.0f, true);
+    drawBitmapText("bigFont", fpsToggleLabel, midX, l.showFpsY + 3.0f * guiScale, 0.50f * fpsBoxScale, fr, fg, fb, 1.0f, true);
 }
 
 // -------------------------------------------------------------
