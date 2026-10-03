@@ -58,8 +58,9 @@ sudo apt install build-essential libsdl2-dev libgl1-mesa-dev zlib1g-dev
 
 #### Compile & Run
 ```bash
-# Clean and compile with all CPU cores
-make -j$(nproc)
+# Configure and compile with CMake
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 
 # Launch
 ./build/GeometryDash
@@ -74,28 +75,24 @@ You can compile standalone Windows executables (both 32-bit and 64-bit) directly
 #### Prerequisites
 ```bash
 # Arch Linux / CachyOS / Manjaro
-sudo pacman -S base-devel mingw-w64-gcc make
+sudo pacman -S base-devel mingw-w64-gcc cmake
 
 # Ubuntu / Debian / Linux Mint
-sudo apt install build-essential g++-mingw-w64-i686 g++-mingw-w64-x86-64 mingw-w64-tools make
+sudo apt install build-essential g++-mingw-w64-i686 g++-mingw-w64-x86-64 mingw-w64-tools cmake
 
 # Fedora
-sudo dnf install mingw32-gcc-c++ mingw64-gcc-c++ mingw32-binutils mingw64-binutils make
+sudo dnf install mingw32-gcc-c++ mingw64-gcc-c++ mingw32-binutils mingw64-binutils cmake
 ```
 
 #### Compile Commands
 * **Windows 32-bit (x86)** *(Recommended for legacy Intel Atom netbooks / GMA graphics with Direct3D 8)*:
   ```bash
-  make win32
-  # or directly:
   ./build_win32.sh
   ```
   *Produces `build/GeometryDash.exe` (PE32 Intel i386).*
 
 * **Windows 64-bit (x64)** *(Recommended for modern 64-bit Windows with Direct3D 9)*:
   ```bash
-  make win64
-  # or directly:
   ./build_win64.sh
   ```
   *Produces `build/GeometryDash_x64.exe` (PE32+ x86-64).*
@@ -111,14 +108,16 @@ If building directly on Windows:
 
 #### For 32-bit (open **MSYS2 MINGW32** terminal):
 ```bash
-pacman -S --needed base-devel mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-zlib make
-make
+pacman -S --needed base-devel mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-zlib mingw-w64-i686-cmake
+cmake -B build -S . -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 ```
 
 #### For 64-bit (open **MSYS2 MINGW64** terminal):
 ```bash
-pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL2 mingw-w64-x86_64-zlib make
-make
+pacman -S --needed base-devel mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL2 mingw-w64-x86_64-zlib mingw-w64-x86_64-cmake
+cmake -B build -S . -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 ```
 
 ---
@@ -159,13 +158,9 @@ ndk.dir=/home/username/Android/Sdk/ndk/26.3.11579264
 ```
 
 #### Compile the APK
-Run the automated build script or use the makefile shortcut:
+Run the automated build script:
 
 ```bash
-# Using make:
-make android
-
-# Or directly using the script:
 ./build_android.sh
 ```
 
