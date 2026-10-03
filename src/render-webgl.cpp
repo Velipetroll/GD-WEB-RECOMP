@@ -171,14 +171,24 @@ bool webgl_init(SDL_Window* window, int windowW, int windowH, bool vsync) {
     const char* glVendor   = (const char*)glGetString(GL_VENDOR);
     const char* glRenderer = (const char*)glGetString(GL_RENDERER);
     const char* glVersion  = (const char*)glGetString(GL_VERSION);
+    #ifdef __ANDROID__
+    caps.name = glRenderer ? glRenderer : "OpenGL ES 2.0";
+    #else
     caps.name = glRenderer ? glRenderer : "WebGL";
+    #endif
     caps.tier = gpu::tierFromName(gpu::lower(caps.name.c_str()), &caps.isIntelGMA);
-    caps.npot = true; // WebGL 1/2 has full NPOT support with CLAMP_TO_EDGE
+    caps.npot = true; // NPOT support with CLAMP_TO_EDGE
     caps.detected = true;
 
+    #ifdef __ANDROID__
+    std::cout << "[RenderDevice] FastPath OpenGL ES 2.0 initialized (" << caps.name
+              << " | tier " << caps.tier << " | quality "
+              << gpu::presetName(gpu::resolvedPreset()) << ")\n";
+    #else
     std::cout << "[RenderDevice] FastPath WebGL initialized (" << caps.name
               << " | tier " << caps.tier << " | quality "
               << gpu::presetName(gpu::resolvedPreset()) << ")\n";
+    #endif
 
     // Setup shaders
     s_webgl.program = createProgram(kVertexShaderSource, kFragmentShaderSource);

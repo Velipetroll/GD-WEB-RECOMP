@@ -225,7 +225,11 @@ RenderDevice::~RenderDevice() { shutdown(); }
 const char* RenderDevice::getBackendName() const {
     if (_backend == RENDERER_D3D8) return "DirectX 8";
     if (_backend == RENDERER_D3D9) return "DirectX 9";
+    #ifdef __ANDROID__
+    if (_backend == RENDERER_WEBGL) return "OpenGL ES 2.0";
+    #else
     if (_backend == RENDERER_WEBGL) return "WebGL 2.0 FastPath";
+    #endif
     return "OpenGL 1.1";
 }
 
@@ -1336,7 +1340,11 @@ void RenderDevice::reloadTextures() {
             if (it != _texUV.end()) { _uvScaled = true; _curUS = it->second.first; _curVS = it->second.second; }
             else { _uvScaled = false; _curUS = _curVS = 1.0f; }
         }
+        #ifdef __ANDROID__
+        std::cout << "[RenderDevice] Dynamic texture reload (OpenGL ES 2.0 | " << gpu::presetName(gpu::resolvedPreset())
+        #else
         std::cout << "[RenderDevice] Dynamic texture reload (WebGL | " << gpu::presetName(gpu::resolvedPreset())
+        #endif
                   << ", 16bit=" << (gpu::knobs().texture16bit ? "yes" : "no")
                   << "): " << _masterTextures.size() << " textures updated.\n";
         return;
