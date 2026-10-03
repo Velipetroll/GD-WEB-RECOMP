@@ -2,7 +2,15 @@
 #include "boot-scene.h"
 #include "font-helpers.h"
 #include "stb_image.h"
-#include <SDL2/SDL_opengl.h>
+#include "render-d3d8.h"
+#include "render-d3d9.h"
+#include "render-gl1.h"
+
+#if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+#define HAS_GLES2 1
+#include "render-webgl.h"
+#endif
+
 #include <iostream>
 #include <iomanip>
 #include <cmath>
@@ -15,49 +23,9 @@
 
 namespace fs = std::filesystem;
 
-#ifndef GL_CLAMP_TO_EDGE
-#define GL_CLAMP_TO_EDGE 0x812F
-#endif
-
 void setEngineBlendMode(BlendMode mode) {
     RenderDevice::get().setBlendMode(mode);
 }
-
-// External declarations implemented in render-d3d8.cpp
-extern bool d3d8_init(SDL_Window* window, int windowW, int windowH, bool vsync);
-extern void d3d8_shutdown();
-extern void d3d8_setViewport(int vpX, int vpY, int vpW, int vpH);
-extern void d3d8_setVSync(bool enabled);
-extern void d3d8_beginFrame();
-extern void d3d8_clear(float r, float g, float b, float a);
-extern void d3d8_endFrame();
-extern void d3d8_flushBatch(const D3DVertex* buffer, size_t count, uint32_t currentTexID);
-extern void d3d8_drawCircle(float cx, float cy, float radius, uint32_t color, bool filled, int segments, float transX, float transY, float scaleX, float scaleY);
-extern void d3d8_drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, bool additive, float transX, float transY, float scaleX, float scaleY);
-extern void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffsetY, float uvW, float uvH, float logicalW, float logicalH, float bgR, float bgG, float bgB, float scaleX, float scaleY);
-extern uint32_t d3d8_registerTexture(uint32_t handle, const PreparedTexture& t);
-extern void d3d8_reloadTexture(uint32_t handle, const PreparedTexture& t);
-
-#if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
-#define HAS_GLES2 1
-#include "render-webgl.h"
-#endif
-
-#ifdef _WIN32
-#include <d3d9.h>
-#include <SDL2/SDL_syswm.h>
-
-#define D3DFVF_D3D9_2D (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
-typedef IDirect3D9* (WINAPI *Direct3DCreate9_Fn)(UINT SDKVersion);
-
-static inline DWORD toD3D9Color(float r, float g, float b, float a) {
-    auto ca = (DWORD)(std::clamp(a, 0.0f, 1.0f) * 255.0f);
-    auto cr = (DWORD)(std::clamp(r, 0.0f, 1.0f) * 255.0f);
-    auto cg = (DWORD)(std::clamp(g, 0.0f, 1.0f) * 255.0f);
-    auto cb = (DWORD)(std::clamp(b, 0.0f, 1.0f) * 255.0f);
-    return (ca << 24) | (cr << 16) | (cg << 8) | cb;
-}
-#endif
 
 // =============================================================================
 // Shared texture preparation (premultiply + NPOT handling + format selection)
@@ -140,7 +108,6 @@ PreparedTexture prepareTexture(const void* rgbaPixels, int width, int height, bo
         int lh = gpu::isPow2(t.height) ? t.height : ph / 2;
         bool closeBelow = lw >= (int)(t.width * 0.9f) && lh >= (int)(t.height * 0.9f);
         if (gpu::knobs().downscaleNpot && closeBelow) {
-            // e.g. the 1046x1046 atlas -> 1024x1024 (2% smaller, 4x less memory than padding to 2048)
             rgba = resampleRGBA(rgba.data(), t.width, t.height, lw, lh);
             t.width = lw; t.height = lh;
         } else {
@@ -268,7 +235,7 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
     }
 
     if (_backend == RENDERER_D3D9) {
-        if (!_initD3D9()) {
+        if (!d3d9_init(window, windowW, windowH, _vsync)) {
             std::cerr << "[RenderDevice] Direct3D 9 failed. Falling back to OpenGL 1.1...\n";
             _backend = RENDERER_OPENGL;
         } else {
@@ -281,262 +248,12 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
     #endif
 
     if (_backend == RENDERER_OPENGL) {
-        if (!_initOpenGL()) return false;
+        if (!gl1_init(window, windowW, windowH, _vsync)) return false;
     }
 
     setViewport(0, 0, windowW, windowH, (float)screenWidth, (float)screenHeight);
     return true;
 }
-
-#ifndef HAS_GLES2
-void RenderDevice::_bindGLBatchPointers() {
-    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].u);
-    _glPointersBound = true;
-}
-
-bool RenderDevice::_initOpenGL() {
-    _glContext = SDL_GL_CreateContext(_window);
-    if (!_glContext) return false;
-
-    // ---- GPU detection (Intel GMA tiers, NPOT support) ----
-    GpuCaps& caps = gpu::caps();
-    const char* glRenderer = (const char*)glGetString(GL_RENDERER);
-    const char* glVersion  = (const char*)glGetString(GL_VERSION);
-    const char* glExt      = (const char*)glGetString(GL_EXTENSIONS);
-    caps.name = glRenderer ? glRenderer : "unknown";
-    caps.tier = gpu::tierFromName(gpu::lower(glRenderer), &caps.isIntelGMA);
-    int major = glVersion ? std::atoi(glVersion) : 1;
-    caps.npot = major >= 2 || (glExt && std::strstr(glExt, "GL_ARB_texture_non_power_of_two"));
-    caps.detected = true;
-    std::cout << "[RenderDevice] GL renderer: " << caps.name << " | tier " << caps.tier
-              << (caps.isIntelGMA ? " (Intel GMA)" : "") << " | NPOT " << (caps.npot ? "yes" : "no")
-              << " | quality " << gpu::presetName(gpu::resolvedPreset()) << "\n";
-
-    // Premultiplied alpha: ONE blend equation for normal + additive, set once for the whole session
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_TEXTURE_2D);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_DITHER);
-    // Alpha test must stay off: additive vertices carry alpha 0 under premultiplied blending.
-    // Fully transparent texels add exactly 0, so the image is unchanged.
-    glDisable(GL_ALPHA_TEST);
-    glDisable(GL_LIGHTING);
-    glDisable(GL_FOG);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);   // 2D only: GMA can skip per-pixel perspective divide
-
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    _bindGLBatchPointers();
-
-    uint32_t whitePixels[4] = { 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
-    glGenTextures(1, &_glWhiteTex);
-    glBindTexture(GL_TEXTURE_2D, _glWhiteTex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, whitePixels);
-    _lastGLTex = _glWhiteTex;
-
-    return true;
-}
-#else
-void RenderDevice::_bindGLBatchPointers() {}
-bool RenderDevice::_initOpenGL() { return true; }
-#endif
-
-#ifdef _WIN32
-bool RenderDevice::_initD3D9() {
-    _hD3D9Module = (void*)LoadLibraryA("d3d9.dll");
-    if (!_hD3D9Module) return false;
-
-    auto pCreate = (Direct3DCreate9_Fn)GetProcAddress((HMODULE)_hD3D9Module, "Direct3DCreate9");
-    if (!pCreate) { FreeLibrary((HMODULE)_hD3D9Module); _hD3D9Module = nullptr; return false; }
-
-    _d3d9 = (void*)pCreate(D3D_SDK_VERSION);
-    if (!_d3d9) { FreeLibrary((HMODULE)_hD3D9Module); _hD3D9Module = nullptr; return false; }
-
-    SDL_SysWMinfo wmInfo;
-    SDL_VERSION(&wmInfo.version);
-    if (!SDL_GetWindowWMInfo(_window, &wmInfo)) return false;
-    HWND hWnd = wmInfo.info.win.window;
-
-    auto* d3d = (IDirect3D9*)_d3d9;
-    D3DDISPLAYMODE d3ddm;
-    if (FAILED(d3d->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &d3ddm))) return false;
-
-    // ---- GPU detection ----
-    GpuCaps& caps = gpu::caps();
-    D3DADAPTER_IDENTIFIER9 ident;
-    if (SUCCEEDED(d3d->GetAdapterIdentifier(D3DADAPTER_DEFAULT, 0, &ident))) {
-        caps.name = ident.Description;
-        int t = gpu::tierFromPciId(ident.VendorId, ident.DeviceId, &caps.isIntelGMA);
-        caps.tier = (t >= 0) ? t : gpu::tierFromName(gpu::lower(ident.Description), &caps.isIntelGMA);
-    }
-    D3DCAPS9 dcaps;
-    if (SUCCEEDED(d3d->GetDeviceCaps(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, &dcaps))) {
-        bool pow2 = (dcaps.TextureCaps & D3DPTEXTURECAPS_POW2) != 0;
-        bool cond = (dcaps.TextureCaps & D3DPTEXTURECAPS_NONPOW2CONDITIONAL) != 0;
-        caps.npot = !pow2 || cond;   // conditional NPOT is enough: clamp addressing, no mipmaps
-    }
-    caps.detected = true;
-
-    auto* d3dpp = (D3DPRESENT_PARAMETERS*)_d3dpp9;
-    ZeroMemory(d3dpp, sizeof(D3DPRESENT_PARAMETERS));
-    d3dpp->Windowed = TRUE;
-    d3dpp->SwapEffect = D3DSWAPEFFECT_DISCARD;
-    d3dpp->BackBufferFormat = d3ddm.Format;
-    d3dpp->BackBufferWidth = _vpW;
-    d3dpp->BackBufferHeight = _vpH;
-    d3dpp->BackBufferCount = 1;
-    d3dpp->EnableAutoDepthStencil = FALSE;
-    d3dpp->hDeviceWindow = hWnd;
-    d3dpp->Flags = 0;
-    d3dpp->PresentationInterval = _vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
-
-    // GMA 900/950/3100/3150 have no hardware T&L: go straight to software VP (XYZRHW bypasses it anyway)
-    DWORD order[2] = { D3DCREATE_HARDWARE_VERTEXPROCESSING, D3DCREATE_SOFTWARE_VERTEXPROCESSING };
-    if (caps.isIntelGMA && caps.tier == 0) std::swap(order[0], order[1]);
-
-    IDirect3DDevice9* dev = nullptr;
-    HRESULT hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, order[0], d3dpp, &dev);
-    if (FAILED(hr)) {
-        hr = d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, order[1], d3dpp, &dev);
-        if (FAILED(hr)) return false;
-    }
-    _d3d9Device = (void*)dev;
-
-    _d3d9CanA8L8 = SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp->BackBufferFormat,
-                                                    0, D3DRTYPE_TEXTURE, D3DFMT_A8L8));
-    _d3d9CanL8   = SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp->BackBufferFormat,
-                                                    0, D3DRTYPE_TEXTURE, D3DFMT_L8));
-    _d3d9CanA4R4G4B4 = SUCCEEDED(d3d->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp->BackBufferFormat,
-                                                        0, D3DRTYPE_TEXTURE, D3DFMT_A4R4G4B4));
-
-    _applyD3D9RenderStates();
-    _createD3D9WhiteTexture();
-    _createD3D9BatchBuffers();
-    std::cout << "[RenderDevice] Direct3D 9 initialized (" << caps.name << " | tier " << caps.tier
-              << " | NPOT " << (caps.npot ? "yes" : "no") << " | quality " << gpu::presetName(gpu::resolvedPreset()) << ").\n";
-    return true;
-}
-
-void RenderDevice::_applyD3D9RenderStates() {
-    auto* dev = (IDirect3DDevice9*)_d3d9Device;
-    if (!dev) return;
-    dev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-    dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
-    dev->SetRenderState(D3DRS_DITHERENABLE, FALSE);
-    dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-    dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
-    // INTEL GMA OPTIMIZATION: Disable CPU software clipping for pre-transformed vertices
-    dev->SetRenderState(D3DRS_CLIPPING, FALSE);
-
-    // Premultiplied alpha: one fixed blend equation for normal + additive (no per-batch state changes)
-    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);   // additive vertices carry alpha 0
-
-    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-    dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-    dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-    dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-    dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-
-    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-    dev->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
-    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    _lastD3D9Tex = nullptr;
-}
-
-void RenderDevice::_bindD3D9Stream() {
-    if (_d3d9Bound) return;
-    auto* dev = (IDirect3DDevice9*)_d3d9Device;
-    dev->SetFVF(D3DFVF_D3D9_2D);
-    dev->SetStreamSource(0, (IDirect3DVertexBuffer9*)_d3d9VB, 0, sizeof(D3DVertex));
-    dev->SetIndices((IDirect3DIndexBuffer9*)_d3d9IB);
-    _d3d9Bound = true;
-}
-
-void RenderDevice::_onResizeD3D9(int newW, int newH) {
-    auto* dev = (IDirect3DDevice9*)_d3d9Device;
-    if (!dev || newW <= 0 || newH <= 0) return;
-    flushBatch();
-
-    if (_d3d9VB) { ((IDirect3DVertexBuffer9*)_d3d9VB)->Release(); _d3d9VB = nullptr; }
-    _d3d9Bound = false;
-    auto* d3dpp = (D3DPRESENT_PARAMETERS*)_d3dpp9;
-    d3dpp->BackBufferWidth = newW;
-    d3dpp->BackBufferHeight = newH;
-    if (FAILED(dev->Reset(d3dpp))) return;
-
-    _createD3D9BatchBuffers();
-    _applyD3D9RenderStates();
-}
-
-void RenderDevice::_createD3D9WhiteTexture() {
-    auto* dev = (IDirect3DDevice9*)_d3d9Device;
-    if (!dev) return;
-    IDirect3DTexture9* tex = nullptr;
-    HRESULT hr = dev->CreateTexture(2, 2, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, NULL);
-    if (FAILED(hr)) hr = dev->CreateTexture(2, 2, 1, 0, D3DFMT_X8R8G8B8, D3DPOOL_MANAGED, &tex, NULL);
-    if (tex) {
-        D3DLOCKED_RECT lr;
-        if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-            auto* p = (uint8_t*)lr.pBits;
-            for (int y = 0; y < 2; ++y) {
-                auto* row = (uint32_t*)(p + y * lr.Pitch);
-                row[0] = 0xFFFFFFFF; row[1] = 0xFFFFFFFF;
-            }
-            tex->UnlockRect(0);
-            _d3d9WhiteTex = (void*)tex;
-        }
-    }
-}
-
-void RenderDevice::_createD3D9BatchBuffers() {
-    auto* dev = (IDirect3DDevice9*)_d3d9Device;
-    if (!dev) return;
-    _d3d9VbOffset = 0;
-    _d3d9Bound = false;
-
-    if (!_d3d9VB) {
-        IDirect3DVertexBuffer9* vb = nullptr;
-        dev->CreateVertexBuffer(D3D9_RING_VERTS * sizeof(D3DVertex), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_D3D9_2D, D3DPOOL_DEFAULT, &vb, NULL);
-        _d3d9VB = (void*)vb;
-    }
-    if (!_d3d9IB) {
-        IDirect3DIndexBuffer9* ib = nullptr;
-        dev->CreateIndexBuffer(MAX_BATCH_QUADS * 6 * sizeof(uint16_t), D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_MANAGED, &ib, NULL);
-        if (ib) {
-            uint16_t* idx = nullptr;
-            if (SUCCEEDED(ib->Lock(0, 0, (void**)&idx, 0))) {
-                for (uint16_t q = 0; q < MAX_BATCH_QUADS; ++q) {
-                    uint16_t base = q * 4;
-                    idx[q * 6 + 0] = base + 0; idx[q * 6 + 1] = base + 1; idx[q * 6 + 2] = base + 2;
-                    idx[q * 6 + 3] = base + 0; idx[q * 6 + 4] = base + 2; idx[q * 6 + 5] = base + 3;
-                }
-                ib->Unlock();
-                _d3d9IB = (void*)ib;
-            }
-        }
-    }
-}
-#endif
 
 void RenderDevice::shutdown() {
     flushBatch();
@@ -547,29 +264,20 @@ void RenderDevice::shutdown() {
         return;
     }
     #endif
+
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_shutdown();
     }
-    if (_d3d9WhiteTex) { ((IDirect3DTexture9*)_d3d9WhiteTex)->Release(); _d3d9WhiteTex = nullptr; }
-    if (_d3d9VB) { ((IDirect3DVertexBuffer9*)_d3d9VB)->Release(); _d3d9VB = nullptr; }
-    if (_d3d9IB) { ((IDirect3DIndexBuffer9*)_d3d9IB)->Release(); _d3d9IB = nullptr; }
-    for (auto& pair : _d3d9Textures) { if (pair.second) ((IDirect3DTexture9*)pair.second)->Release(); }
-    _d3d9Textures.clear();
-    if (_d3d9Device) { ((IDirect3DDevice9*)_d3d9Device)->Release(); _d3d9Device = nullptr; }
-    if (_d3d9) { ((IDirect3D9*)_d3d9)->Release(); _d3d9 = nullptr; }
-    if (_hD3D9Module) { FreeLibrary((HMODULE)_hD3D9Module); _hD3D9Module = nullptr; }
+    if (_backend == RENDERER_D3D9) {
+        d3d9_shutdown();
+    }
     #endif
 
-    if (_glWhiteTex) {
-        glDeleteTextures(1, &_glWhiteTex);
-        _glWhiteTex = 0;
+    if (_backend == RENDERER_OPENGL) {
+        gl1_shutdown();
     }
 
-    if (_glContext) {
-        SDL_GL_DeleteContext(_glContext);
-        _glContext = nullptr;
-    }
     _masterTextures.clear();
 }
 
@@ -592,26 +300,13 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
         d3d8_setViewport(vpX, vpY, vpW, vpH);
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* d3dpp = (D3DPRESENT_PARAMETERS*)_d3dpp9;
-        if (vpW != (int)d3dpp->BackBufferWidth || vpH != (int)d3dpp->BackBufferHeight) {
-            _onResizeD3D9(vpW, vpH);
-        }
-        D3DVIEWPORT9 vp;
-        vp.X = vpX; vp.Y = vpY; vp.Width = vpW; vp.Height = vpH; vp.MinZ = 0.0f; vp.MaxZ = 1.0f;
-        ((IDirect3DDevice9*)_d3d9Device)->SetViewport(&vp);
+    if (_backend == RENDERER_D3D9) {
+        d3d9_setViewport(vpX, vpY, vpW, vpH);
         return;
     }
     #endif
 
-    #ifndef HAS_GLES2
-    glViewport(vpX, vpY, vpW, vpH);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0.0, logicalW, logicalH, 0.0, -1.0, 1.0);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    #endif
+    gl1_setViewport(vpX, vpY, vpW, vpH, logicalW, logicalH);
 }
 
 void RenderDevice::setVSync(bool enabled) {
@@ -627,17 +322,12 @@ void RenderDevice::setVSync(bool enabled) {
         d3d8_setVSync(enabled);
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* d3dpp = (D3DPRESENT_PARAMETERS*)_d3dpp9;
-        DWORD target = enabled ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
-        if (d3dpp->PresentationInterval != target) {
-            d3dpp->PresentationInterval = target;
-            _onResizeD3D9(_vpW, _vpH);
-        }
+    if (_backend == RENDERER_D3D9) {
+        d3d9_setVSync(enabled);
         return;
     }
     #endif
-    SDL_GL_SetSwapInterval(enabled ? 1 : 0);
+    gl1_setVSync(enabled);
 }
 
 void RenderDevice::beginFrame() {
@@ -649,8 +339,9 @@ void RenderDevice::beginFrame() {
     #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_beginFrame(); return; }
-    if (_backend == RENDERER_D3D9) { _inScene = false; return; }
+    if (_backend == RENDERER_D3D9) { d3d9_beginFrame(); return; }
     #endif
+    gl1_beginFrame();
 }
 
 void RenderDevice::clear(float r, float g, float b, float a) {
@@ -659,15 +350,9 @@ void RenderDevice::clear(float r, float g, float b, float a) {
     #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_clear(r, g, b, a); return; }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        dev->Clear(0, NULL, D3DCLEAR_TARGET, toD3D9Color(r, g, b, a), 1.0f, 0);
-        if (!_inScene) { dev->BeginScene(); _inScene = true; }
-        return;
-    }
+    if (_backend == RENDERER_D3D9) { d3d9_clear(r, g, b, a); return; }
     #endif
-    glClearColor(r, g, b, a);
-    glClear(GL_COLOR_BUFFER_BIT);
+    gl1_clear(r, g, b, a);
 }
 
 void RenderDevice::endFrame() {
@@ -687,14 +372,9 @@ void RenderDevice::endFrame() {
     #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_endFrame(); return; }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        if (_inScene) { dev->EndScene(); _inScene = false; }
-        dev->Present(NULL, NULL, NULL, NULL);
-        return;
-    }
+    if (_backend == RENDERER_D3D9) { d3d9_endFrame(); return; }
     #endif
-    SDL_GL_SwapWindow(_window);
+    gl1_endFrame(_window);
 }
 
 void RenderDevice::beginBatch() {
@@ -720,60 +400,15 @@ void RenderDevice::flushBatch() {
         _batchVertCount = 0;
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB && _d3d9IB) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        if (!_inScene) {
-            dev->BeginScene();
-            _inScene = true;
-        }
-
-        IDirect3DTexture9* tex = (IDirect3DTexture9*)_d3d9WhiteTex;
-        if (_currentTexID != 0) {
-            auto it = _d3d9Textures.find(_currentTexID);
-            if (it != _d3d9Textures.end() && it->second) tex = (IDirect3DTexture9*)it->second;
-        }
-
-        if (_lastD3D9Tex != tex) {
-            dev->SetTexture(0, tex);
-            _lastD3D9Tex = tex;
-        }
-
-        // Stall-free ring buffer: continuous D3DLOCK_NOOVERWRITE, DISCARD when restarting cycle
-        DWORD lockFlags = D3DLOCK_NOOVERWRITE;
-        if (_d3d9VbOffset + _batchVertCount > D3D9_RING_VERTS) {
-            _d3d9VbOffset = 0;
-            lockFlags = D3DLOCK_DISCARD;
-        }
-
-        D3DVertex* pLock = nullptr;
-        auto* vb = (IDirect3DVertexBuffer9*)_d3d9VB;
-        if (SUCCEEDED(vb->Lock(_d3d9VbOffset * sizeof(D3DVertex), _batchVertCount * sizeof(D3DVertex), (void**)&pLock, lockFlags))) {
-            // Direct contiguous memory copy - Vertices already precalculated with scale and color
-            memcpy(pLock, _batchBuffer.d3d, _batchVertCount * sizeof(D3DVertex));
-            vb->Unlock();
-
-            _bindD3D9Stream();   // FVF / stream 0 / index buffer never change: bound once
-            UINT numPrimitives = (UINT)(_batchVertCount / 4) * 2;
-            dev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, (INT)_d3d9VbOffset, 0, _batchVertCount, 0, numPrimitives);
-            _d3d9VbOffset += _batchVertCount;
-        }
+    if (_backend == RENDERER_D3D9) {
+        d3d9_flushBatch(_batchBuffer.d3d, _batchVertCount, _currentTexID);
         _batchVertCount = 0;
         return;
     }
     #endif
 
-    #ifndef HAS_GLES2
-    // OpenGL: blend func is constant (premultiplied alpha); pointers only rebound after an immediate path
-    GLuint bindTex = (_currentTexID != 0) ? _currentTexID : _glWhiteTex;
-    if (_lastGLTex != bindTex) {
-        glBindTexture(GL_TEXTURE_2D, bindTex);
-        _lastGLTex = bindTex;
-    }
-    if (!_glPointersBound) _bindGLBatchPointers();
-
-    glDrawArrays(GL_QUADS, 0, (GLsizei)_batchVertCount);
+    gl1_flushBatch(_batchBuffer.gl, _batchVertCount, _currentTexID);
     _batchVertCount = 0;
-    #endif
 }
 
 void RenderDevice::_selectTexture(uint32_t texID) {
@@ -876,88 +511,27 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
     ++_drawCalls;
     _currentBlend = blend;
     const int segments = std::clamp(gpu::knobs().circleSegments, 6, 16);
+
     #ifdef HAS_GLES2
     if (_backend == RENDERER_WEBGL) {
         webgl_drawCircle(cx, cy, radius, r, g, b, a, filled, segments, _transX, _transY, blend);
         return;
     }
     #endif
+
     const bool additive = blend == BLEND_ADD;
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawCircle(cx, cy, radius, packColorPMA(r, g, b, a, additive, false), filled, segments, _transX, _transY, _scaleX, _scaleY);
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        if (!_inScene) { dev->BeginScene(); _inScene = true; }
-        if (_lastD3D9Tex != _d3d9WhiteTex) {
-            dev->SetTexture(0, (IDirect3DTexture9*)_d3d9WhiteTex);
-            _lastD3D9Tex = _d3d9WhiteTex;
-        }
-        _bindD3D9Stream();
-
-        DWORD color = packColorPMA(r, g, b, a, additive, false);
-        size_t count = filled ? (segments + 2) : (segments + 1);
-
-        DWORD lockFlags = D3DLOCK_NOOVERWRITE;
-        if (_d3d9VbOffset + count > D3D9_RING_VERTS) {
-            _d3d9VbOffset = 0;
-            lockFlags = D3DLOCK_DISCARD;
-        }
-
-        D3DVertex* pLock = nullptr;
-        auto* vb = (IDirect3DVertexBuffer9*)_d3d9VB;
-        if (SUCCEEDED(vb->Lock(_d3d9VbOffset * sizeof(D3DVertex), count * sizeof(D3DVertex), (void**)&pLock, lockFlags))) {
-            size_t o = 0;
-            if (filled) pLock[o++] = { (cx + _transX) * _scaleX, (cy + _transY) * _scaleY, 0.5f, 1.0f, color, 0.5f, 0.5f };
-            for (int i = 0; i <= segments; ++i) {
-                float ang = (i / (float)segments) * 6.2831853f;
-                pLock[o++] = { (cx + _transX + std::cos(ang) * radius) * _scaleX,
-                               (cy + _transY + std::sin(ang) * radius) * _scaleY,
-                               0.5f, 1.0f, color, 0.5f, 0.5f };
-            }
-            vb->Unlock();
-            dev->DrawPrimitive(filled ? D3DPT_TRIANGLEFAN : D3DPT_LINESTRIP, (UINT)_d3d9VbOffset, segments);
-            _d3d9VbOffset += count;
-        }
+    if (_backend == RENDERER_D3D9) {
+        d3d9_drawCircle(cx, cy, radius, packColorPMA(r, g, b, a, additive, false), filled, segments, _transX, _transY, _scaleX, _scaleY);
         return;
     }
     #endif
 
-    #ifndef HAS_GLES2
-    glDisable(GL_TEXTURE_2D);
-    float verts[18 * 2];
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
-    float ac = std::clamp(a, 0.0f, 1.0f);
-    glColor4f(r * ac, g * ac, b * ac, additive ? 0.0f : ac);
-    float ox = cx + _transX, oy = cy + _transY;
-    if (filled) {
-        verts[0] = ox; verts[1] = oy;
-        for (int i = 0; i <= segments; ++i) {
-            float ang = (i / (float)segments) * 6.2831853f;
-            verts[(i + 1) * 2 + 0] = ox + std::cos(ang) * radius;
-            verts[(i + 1) * 2 + 1] = oy + std::sin(ang) * radius;
-        }
-        glVertexPointer(2, GL_FLOAT, 0, verts);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, segments + 2);
-    } else {
-        for (int i = 0; i < segments; ++i) {
-            float ang = (i / (float)segments) * 6.2831853f;
-            verts[i * 2 + 0] = ox + std::cos(ang) * radius;
-            verts[i * 2 + 1] = oy + std::sin(ang) * radius;
-        }
-        glLineWidth(3.0f);
-        glVertexPointer(2, GL_FLOAT, 0, verts);
-        glDrawArrays(GL_LINE_LOOP, 0, segments);
-        glLineWidth(1.0f);
-    }
-    glEnableClientState(GL_COLOR_ARRAY);
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glEnable(GL_TEXTURE_2D);
-    _glPointersBound = false;   // lazily rebound by the next batch flush
-    #endif
+    gl1_drawCircle(cx, cy, radius, r, g, b, a, filled, segments, _transX, _transY, blend);
 }
 
 void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, BlendMode blend) {
@@ -966,67 +540,26 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
     ++_drawCalls;
     _currentBlend = blend;
     const bool additive = blend == BLEND_ADD;
+
     #ifdef HAS_GLES2
     if (_backend == RENDERER_WEBGL) {
         webgl_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY);
         return;
     }
     #endif
+
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY, _scaleX, _scaleY);
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        if (!_inScene) { dev->BeginScene(); _inScene = true; }
-        if (_lastD3D9Tex != _d3d9WhiteTex) {
-            dev->SetTexture(0, (IDirect3DTexture9*)_d3d9WhiteTex);
-            _lastD3D9Tex = _d3d9WhiteTex;
-        }
-        _bindD3D9Stream();
-
-        DWORD lockFlags = D3DLOCK_NOOVERWRITE;
-        if (_d3d9VbOffset + vertCount > D3D9_RING_VERTS) {
-            _d3d9VbOffset = 0;
-            lockFlags = D3DLOCK_DISCARD;
-        }
-
-        D3DVertex* pLock = nullptr;
-        auto* vb = (IDirect3DVertexBuffer9*)_d3d9VB;
-        if (SUCCEEDED(vb->Lock(_d3d9VbOffset * sizeof(D3DVertex), vertCount * sizeof(D3DVertex), (void**)&pLock, lockFlags))) {
-            for (size_t i = 0; i < vertCount; ++i) {
-                pLock[i].x = (coordsXY[i * 2 + 0] + _transX) * _scaleX;
-                pLock[i].y = (coordsXY[i * 2 + 1] + _transY) * _scaleY;
-                pLock[i].z = 0.5f; pLock[i].rhw = 1.0f;
-                pLock[i].color = packColorPMA(colorsRGBA[i * 4 + 0], colorsRGBA[i * 4 + 1], colorsRGBA[i * 4 + 2], colorsRGBA[i * 4 + 3], additive, false);
-                pLock[i].u = 0.5f; pLock[i].v = 0.5f;
-            }
-            vb->Unlock();
-            dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, (UINT)_d3d9VbOffset, (UINT)vertCount - 2);
-            _d3d9VbOffset += vertCount;
-        }
+    if (_backend == RENDERER_D3D9) {
+        d3d9_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY, _scaleX, _scaleY);
         return;
     }
     #endif
 
-    #ifndef HAS_GLES2
-    // GL: translate + premultiply on the CPU (no matrix push/pop, no float colour arrays)
-    static std::vector<GLVertex> strip;
-    strip.resize(vertCount);
-    for (size_t i = 0; i < vertCount; ++i) {
-        strip[i].x = coordsXY[i * 2 + 0] + _transX;
-        strip[i].y = coordsXY[i * 2 + 1] + _transY;
-        strip[i].color = packColorPMA(colorsRGBA[i * 4 + 0], colorsRGBA[i * 4 + 1], colorsRGBA[i * 4 + 2], colorsRGBA[i * 4 + 3], additive, true);
-        strip[i].u = strip[i].v = 0.5f;
-    }
-    if (_lastGLTex != _glWhiteTex) { glBindTexture(GL_TEXTURE_2D, _glWhiteTex); _lastGLTex = _glWhiteTex; }
-    glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &strip[0].x);
-    glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &strip[0].color);
-    glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &strip[0].u);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)vertCount);
-    _glPointersBound = false;
-    #endif
+    gl1_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY);
 }
 
 static inline bool isBackgroundTextureName(const std::string& name) {
@@ -1041,7 +574,12 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     const float baseBgH = 1024.0f;
     float uvW = _logicalW / baseBgW;
     float uvH = _logicalH / baseBgH;
-    float uvOffsetX = scrollX / baseBgW;
+
+    // Wrap scrollX into [0, baseBgW) to eliminate coordinate drift and float precision jitter on mobile/web GPUs
+    float wrappedScrollX = std::fmod(scrollX, baseBgW);
+    if (wrappedScrollX < 0.0f) wrappedScrollX += baseBgW;
+    float uvOffsetX = wrappedScrollX / baseBgW;
+
     float bgInitY = baseBgH - _logicalH - 180.0f;
     float bgPosY = bgInitY - camY * 0.1f;
     float uvOffsetY = bgPosY / baseBgH;
@@ -1069,71 +607,13 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
         d3d8_drawRepeatedBackground(actualTexID, uvOffsetX, uvOffsetY, uvW, uvH, _logicalW, _logicalH, bgR, bgG, bgB, _scaleX, _scaleY);
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device && _d3d9VB) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
-        if (!_inScene) {
-            dev->BeginScene();
-            _inScene = true;
-        }
-
-        IDirect3DTexture9* tex = (IDirect3DTexture9*)_d3d9WhiteTex;
-        auto it = _d3d9Textures.find(actualTexID);
-        if (it != _d3d9Textures.end() && it->second) tex = (IDirect3DTexture9*)it->second;
-
-        dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);   // full-screen opaque pass: no blending
-        if (_lastD3D9Tex != tex) { dev->SetTexture(0, tex); _lastD3D9Tex = tex; }
-        dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-        dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-        _bindD3D9Stream();
-
-        DWORD color = toD3D9Color(bgR, bgG, bgB, 1.0f);
-        DWORD lockFlags = D3DLOCK_NOOVERWRITE;
-        if (_d3d9VbOffset + 4 > D3D9_RING_VERTS) {
-            _d3d9VbOffset = 0;
-            lockFlags = D3DLOCK_DISCARD;
-        }
-
-        D3DVertex* pLock = nullptr;
-        auto* vb = (IDirect3DVertexBuffer9*)_d3d9VB;
-        if (SUCCEEDED(vb->Lock(_d3d9VbOffset * sizeof(D3DVertex), 4 * sizeof(D3DVertex), (void**)&pLock, lockFlags))) {
-            pLock[0] = { 0.0f,               0.0f,               0.5f, 1.0f, color, uvOffsetX,       uvOffsetY };
-            pLock[1] = { _logicalW * _scaleX, 0.0f,               0.5f, 1.0f, color, uvOffsetX + uvW, uvOffsetY };
-            pLock[2] = { 0.0f,               _logicalH * _scaleY, 0.5f, 1.0f, color, uvOffsetX,       uvOffsetY + uvH };
-            pLock[3] = { _logicalW * _scaleX, _logicalH * _scaleY, 0.5f, 1.0f, color, uvOffsetX + uvW, uvOffsetY + uvH };
-            vb->Unlock();
-            dev->DrawPrimitive(D3DPT_TRIANGLESTRIP, (UINT)_d3d9VbOffset, 2);
-            _d3d9VbOffset += 4;
-        }
-
-        dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-        dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-        dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    if (_backend == RENDERER_D3D9) {
+        d3d9_drawRepeatedBackground(actualTexID, uvOffsetX, uvOffsetY, uvW, uvH, _logicalW, _logicalH, bgR, bgG, bgB, _scaleX, _scaleY);
         return;
     }
     #endif
 
-    #ifndef HAS_GLES2
-    glDisable(GL_BLEND);   // full-screen opaque pass: no blending
-    if (_lastGLTex != actualTexID) {
-        glBindTexture(GL_TEXTURE_2D, actualTexID);
-        _lastGLTex = actualTexID;
-    }
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    uint32_t colorGL = packColorPMA(bgR, bgG, bgB, 1.0f, false, true);
-
-    _batchBuffer.gl[0] = { 0.0f,       0.0f,       colorGL, uvOffsetX,       uvOffsetY };
-    _batchBuffer.gl[1] = { _logicalW,  0.0f,       colorGL, uvOffsetX + uvW, uvOffsetY };
-    _batchBuffer.gl[2] = { _logicalW,  _logicalH,  colorGL, uvOffsetX + uvW, uvOffsetY + uvH };
-    _batchBuffer.gl[3] = { 0.0f,       _logicalH,  colorGL, uvOffsetX,       uvOffsetY + uvH };
-
-    if (!_glPointersBound) _bindGLBatchPointers();
-    glDrawArrays(GL_QUADS, 0, 4);
-    glEnable(GL_BLEND);
-    #endif
+    gl1_drawRepeatedBackground(actualTexID, uvOffsetX, uvOffsetY, uvW, uvH, _logicalW, _logicalH, bgR, bgG, bgB);
 }
 
 uint32_t RenderDevice::registerTexture(const std::string& name, int width, int height, const void* rgbaPixels) {
@@ -1158,36 +638,12 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
         _recordTexUV(handle, t);
         return d3d8_registerTexture(handle, t);
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
+    if (_backend == RENDERER_D3D9) {
+        registerNames(handle);
         _masterTextures[handle] = { name, width, height, std::vector<uint8_t>((const uint8_t*)rgbaPixels, (const uint8_t*)rgbaPixels + (size_t)width * height * 4) };
         PreparedTexture t = prepareTexture(rgbaPixels, width, height, needPOT, true, isBackgroundTextureName(name));
-
-        // d3dMode: 0 = A8R8G8B8, 1 = A8L8 (2 B/texel), 2 = L8 (1 B/texel), 3 = A4R4G4B4 (2 B/texel)
-        int mode = 0;
-        D3DFORMAT fmt = D3DFMT_A8R8G8B8;
-        if (t.format == PF_L8 && _d3d9CanL8) { mode = 2; fmt = D3DFMT_L8; }
-        else if ((t.format == PF_LA8 || t.format == PF_I8) && _d3d9CanA8L8) { mode = 1; fmt = D3DFMT_A8L8; }
-        else if (t.format == PF_RGBA4444 && _d3d9CanA4R4G4B4) { mode = 3; fmt = D3DFMT_A4R4G4B4; }
-
-        IDirect3DTexture9* tex = nullptr;
-        if (FAILED(dev->CreateTexture(t.width, t.height, 1, 0, fmt, D3DPOOL_MANAGED, &tex, NULL))) {
-            tex = nullptr; mode = 0;
-            if (FAILED(dev->CreateTexture(t.width, t.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, NULL))) tex = nullptr;
-        }
-        if (tex) {
-            D3DLOCKED_RECT lr;
-            if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-                writeD3DTexels(t, mode, lr.pBits, lr.Pitch);
-                tex->UnlockRect(0);
-                _d3d9Textures[handle] = (void*)tex;
-            } else {
-                tex->Release();
-            }
-        }
         _recordTexUV(handle, t);
-        registerNames(handle);
-        return handle;
+        return d3d9_registerTexture(handle, t);
     }
     #endif
 
@@ -1202,49 +658,12 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
     }
     #endif
 
-    #ifndef HAS_GLES2
-    flushBatch();   // never change the bound texture underneath pending quads
-
-    const bool allowIntensity = true;
-    PreparedTexture t = prepareTexture(rgbaPixels, width, height, needPOT, allowIntensity, isBackgroundTextureName(name));
-
-    GLuint glID = 0;
-    glGenTextures(1, &glID);
-    glBindTexture(GL_TEXTURE_2D, glID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    GLint wrapMode = isBackgroundTextureName(name) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    switch (t.format) {
-        case PF_L8:   // opaque grayscale: (L,L,L,1)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, t.width, t.height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, t.data.data());
-            break;
-        case PF_I8:   // premultiplied white mask: (I,I,I,I), 1 byte per texel
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_INTENSITY8, t.width, t.height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, t.data.data());
-            break;
-        case PF_LA8:  // premultiplied gray + alpha: 2 bytes per texel
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, t.width, t.height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, t.data.data());
-            break;
-        case PF_RGBA4444:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-            break;
-        default:
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-            break;
-    }
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-    _lastGLTex = 0;   // bind cache is stale after touching GL_TEXTURE_2D
+    PreparedTexture t = prepareTexture(rgbaPixels, width, height, needPOT, true, isBackgroundTextureName(name));
+    uint32_t glID = gl1_registerTexture(t, isBackgroundTextureName(name));
     _recordTexUV(glID, t);
     registerNames(glID);
     _masterTextures[glID] = { name, width, height, std::vector<uint8_t>((const uint8_t*)rgbaPixels, (const uint8_t*)rgbaPixels + (size_t)width * height * 4) };
     return glID;
-    #else
-    return 0;
-    #endif
 }
 
 void RenderDevice::reloadTextures() {
@@ -1273,47 +692,14 @@ void RenderDevice::reloadTextures() {
                   << "): " << _masterTextures.size() << " textures updated.\n";
         return;
     }
-    if (_backend == RENDERER_D3D9 && _d3d9Device) {
-        auto* dev = (IDirect3DDevice9*)_d3d9Device;
+    if (_backend == RENDERER_D3D9) {
         for (const auto& pair : _masterTextures) {
             uint32_t handle = pair.first;
             const MasterTexture& master = pair.second;
             PreparedTexture t = prepareTexture(master.rgba.data(), master.width, master.height, needPOT, true, isBackgroundTextureName(master.name));
             _recordTexUV(handle, t);
-
-            auto it = _d3d9Textures.find(handle);
-            if (it != _d3d9Textures.end() && it->second) {
-                if (_lastD3D9Tex == it->second) {
-                    _lastD3D9Tex = nullptr;
-                    dev->SetTexture(0, (IDirect3DTexture9*)_d3d9WhiteTex);
-                }
-                ((IDirect3DTexture9*)it->second)->Release();
-                it->second = nullptr;
-            }
-
-            int mode = 0;
-            D3DFORMAT fmt = D3DFMT_A8R8G8B8;
-            if (t.format == PF_L8 && _d3d9CanL8) { mode = 2; fmt = D3DFMT_L8; }
-            else if ((t.format == PF_LA8 || t.format == PF_I8) && _d3d9CanA8L8) { mode = 1; fmt = D3DFMT_A8L8; }
-            else if (t.format == PF_RGBA4444 && _d3d9CanA4R4G4B4) { mode = 3; fmt = D3DFMT_A4R4G4B4; }
-
-            IDirect3DTexture9* tex = nullptr;
-            if (FAILED(dev->CreateTexture(t.width, t.height, 1, 0, fmt, D3DPOOL_MANAGED, &tex, NULL))) {
-                tex = nullptr; mode = 0;
-                if (FAILED(dev->CreateTexture(t.width, t.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, NULL))) tex = nullptr;
-            }
-            if (tex) {
-                D3DLOCKED_RECT lr;
-                if (SUCCEEDED(tex->LockRect(0, &lr, NULL, 0))) {
-                    writeD3DTexels(t, mode, lr.pBits, lr.Pitch);
-                    tex->UnlockRect(0);
-                    _d3d9Textures[handle] = (void*)tex;
-                } else {
-                    tex->Release();
-                }
-            }
+            d3d9_reloadTexture(handle, t);
         }
-        _lastD3D9Tex = nullptr;
         if (_currentTexID != 0) {
             auto it = _texUV.find(_currentTexID);
             if (it != _texUV.end()) { _uvScaled = true; _curUS = it->second.first; _curVS = it->second.second; }
@@ -1351,44 +737,15 @@ void RenderDevice::reloadTextures() {
     }
     #endif
 
-    #ifndef HAS_GLES2
     const bool allowIntensity = true;
-
     for (const auto& pair : _masterTextures) {
         uint32_t handle = pair.first;
         const MasterTexture& master = pair.second;
         PreparedTexture t = prepareTexture(master.rgba.data(), master.width, master.height, needPOT, allowIntensity, isBackgroundTextureName(master.name));
         _recordTexUV(handle, t);
-
-        glBindTexture(GL_TEXTURE_2D, handle);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        GLint wrapMode = isBackgroundTextureName(master.name) ? GL_REPEAT : GL_CLAMP_TO_EDGE;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrapMode);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapMode);
-
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        switch (t.format) {
-            case PF_L8:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, t.width, t.height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, t.data.data());
-                break;
-            case PF_I8:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_INTENSITY8, t.width, t.height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, t.data.data());
-                break;
-            case PF_LA8:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, t.width, t.height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, t.data.data());
-                break;
-            case PF_RGBA4444:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-                break;
-            default:
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-                break;
-        }
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        gl1_reloadTexture(handle, t, isBackgroundTextureName(master.name));
     }
 
-    _lastGLTex = 0;
     if (_currentTexID != 0) {
         auto it = _texUV.find(_currentTexID);
         if (it != _texUV.end()) { _uvScaled = true; _curUS = it->second.first; _curVS = it->second.second; }
@@ -1397,7 +754,6 @@ void RenderDevice::reloadTextures() {
     std::cout << "[RenderDevice] Dynamic texture reload (OpenGL | " << gpu::presetName(gpu::resolvedPreset())
               << ", 16bit=" << (gpu::knobs().texture16bit ? "yes" : "no")
               << "): " << _masterTextures.size() << " textures updated.\n";
-    #endif
 }
 
 void RenderDevice::syncTexturesFromBootScene() {

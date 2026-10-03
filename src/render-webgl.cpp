@@ -58,7 +58,11 @@ static const char* kVertexShaderSource =
     "}\n";
 
 static const char* kFragmentShaderSource =
+    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
+    "precision highp float;\n"
+    "#else\n"
     "precision mediump float;\n"
+    "#endif\n"
     "varying vec4 v_color;\n"
     "varying vec2 v_texCoord;\n"
     "uniform sampler2D u_texture;\n"
@@ -424,8 +428,6 @@ void webgl_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float uvOffse
         glBindTexture(GL_TEXTURE_2D, texID);
         s_webgl.lastBoundTex = texID;
     }
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glDisable(GL_BLEND);
     glDrawArrays(GL_TRIANGLE_STRIP, (GLint)s_webgl.vbOffset, 4);

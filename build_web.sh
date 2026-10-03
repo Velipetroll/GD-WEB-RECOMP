@@ -48,7 +48,9 @@ SRCS=(
     src/pako-compression.cpp
     src/player.cpp
     src/render-d3d8.cpp
+    src/render-d3d9.cpp
     src/render-device.cpp
+    src/render-gl1.cpp
     src/render-webgl.cpp
     src/sprite-layer-helper.cpp
     src/trail-renderer.cpp

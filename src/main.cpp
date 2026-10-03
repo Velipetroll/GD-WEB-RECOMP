@@ -308,7 +308,10 @@ int main(int argc, char* argv[]) {
 
         int targetFps = cachedTargetFps;
 
-        if (targetFps > 0) {
+#if !defined(__ANDROID__)
+        // On Android / mobile, hardware VSync via SDL_GL_SwapWindow governs pacing.
+        // Doing a software sleep loop on top of hardware VSync causes buffer misses that lock the framerate to 30 FPS.
+        if (!currentOpt.vsync && targetFps > 0) {
             Uint64 targetTicks = timerFreq / (Uint64)targetFps;
             while (true) {
                 Uint64 currentPerf = SDL_GetPerformanceCounter();
@@ -325,6 +328,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+#endif
     }
 #endif
 

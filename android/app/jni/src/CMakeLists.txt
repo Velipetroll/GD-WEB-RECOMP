@@ -18,7 +18,10 @@ set(GAME_SOURCES
     ${SRC_DIR}/main.cpp
     ${SRC_DIR}/pako-compression.cpp
     ${SRC_DIR}/player.cpp
+    ${SRC_DIR}/render-d3d8.cpp
+    ${SRC_DIR}/render-d3d9.cpp
     ${SRC_DIR}/render-device.cpp
+    ${SRC_DIR}/render-gl1.cpp
     ${SRC_DIR}/render-webgl.cpp
     ${SRC_DIR}/sprite-layer-helper.cpp
     ${SRC_DIR}/trail-renderer.cpp

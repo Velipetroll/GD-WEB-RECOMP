@@ -192,18 +192,8 @@ private:
     RenderDevice();
     ~RenderDevice();
 
-    bool _initOpenGL();
-    void _bindGLBatchPointers();
     void _selectTexture(uint32_t texID);
     void _recordTexUV(uint32_t handle, const PreparedTexture& t);
-    #ifdef _WIN32
-    bool _initD3D9();
-    void _createD3D9WhiteTexture();
-    void _createD3D9BatchBuffers();
-    void _applyD3D9RenderStates();
-    void _bindD3D9Stream();
-    void _onResizeD3D9(int newW, int newH);
-    #endif
 
     SDL_Window* _window = nullptr;
     SDL_GLContext _glContext = nullptr;
@@ -234,34 +224,10 @@ private:
     } _batchBuffer;
     size_t _batchVertCount = 0;
 
-    GLuint _glWhiteTex = 0;
-    GLuint _lastGLTex = 0;
-    bool _glPointersBound = false;   // client arrays point at _batchBuffer.gl
-
     uint32_t _drawCalls = 0, _lastDrawCalls = 0;
     uint32_t _statsFrames = 0, _statsTick = 0;
     bool _statsEnabled = false;
     bool _tex16Active = false;
-
-    #ifdef _WIN32
-    // Direct3D 9 members with dynamic ring buffer and texture cache
-    static constexpr size_t D3D9_RING_VERTS = 32768; // 8192 quads
-    size_t _d3d9VbOffset = 0;
-    void* _lastD3D9Tex = nullptr;
-    void* _hD3D9Module = nullptr;
-    void* _d3d9 = nullptr;
-    void* _d3d9Device = nullptr;
-    void* _d3d9VB = nullptr;
-    void* _d3d9IB = nullptr;
-    void* _d3d9WhiteTex = nullptr;
-    uint8_t _d3dpp9[128] = { 0 }; // Opaque buffer for D3DPRESENT_PARAMETERS of D3D9
-    std::unordered_map<uint32_t, void*> _d3d9Textures;
-    bool _inScene = false;
-    bool _d3d9Bound = false;      // FVF / stream 0 / index buffer already bound
-    bool _d3d9CanA8L8 = false;    // device can sample D3DFMT_A8L8 (lossless 16-bit mask textures)
-    bool _d3d9CanL8 = false;      // device can sample D3DFMT_L8 (lossless 8-bit opaque gray textures)
-    bool _d3d9CanA4R4G4B4 = false;// device can sample D3DFMT_A4R4G4B4 (quality preset LOW)
-    #endif
 
     std::unordered_map<std::string, uint32_t> _textureRegistry;
     std::unordered_map<uint32_t, MasterTexture> _masterTextures;
