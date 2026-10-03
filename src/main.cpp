@@ -19,6 +19,7 @@
 #include "settings.h"
 
 static void setWindowIcon(SDL_Window* window) {
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
     stbi_set_flip_vertically_on_load(false);
     int w = 0, h = 0, channels = 0;
     unsigned char* pixels = stbi_load("assets/icon.png", &w, &h, &channels, 4);
@@ -33,6 +34,9 @@ static void setWindowIcon(SDL_Window* window) {
         }
         stbi_image_free(pixels);
     }
+#else
+    (void)window;
+#endif
 }
 
 void updateViewport(int windowWidth, int windowHeight, SDL_Window* window = nullptr) {
@@ -121,6 +125,8 @@ int main(int argc, char* argv[]) {
             selectedBackend = RENDERER_D3D9;
         }
     }
+    #elif defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+    selectedBackend = RENDERER_WEBGL;
     #else
     selectedBackend = RENDERER_OPENGL;
     #endif
@@ -139,11 +145,16 @@ int main(int argc, char* argv[]) {
         windowFlags |= SDL_WINDOW_OPENGL;
     }
     const char* winTitle = "Geometry Dash - Play Level 1";
-    #elif defined(__EMSCRIPTEN__)
+    #elif defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    #ifdef __ANDROID__
+    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN;
+    #else
     Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    #endif
     const char* winTitle = "Geometry Dash - Play Level 1";
     #else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);

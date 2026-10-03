@@ -49,6 +49,7 @@ SRCS=(
     src/player.cpp
     src/render-d3d8.cpp
     src/render-device.cpp
+    src/render-webgl.cpp
     src/sprite-layer-helper.cpp
     src/trail-renderer.cpp
     src/win-effects.cpp
@@ -64,8 +65,6 @@ echo "==> Compiling WebAssembly & WebGL build..."
 "$EMXX" -std=c++17 -O3 -flto \
     -sUSE_SDL=2 \
     -sUSE_ZLIB=1 \
-    -sLEGACY_GL_EMULATION=1 \
-    -sGL_UNSAFE_OPTS=0 \
     -sMAX_WEBGL_VERSION=2 \
     -sMIN_WEBGL_VERSION=1 \
     -sALLOW_MEMORY_GROWTH=1 \

@@ -38,6 +38,11 @@ extern void d3d8_drawRepeatedBackground(uint32_t texID, float uvOffsetX, float u
 extern uint32_t d3d8_registerTexture(uint32_t handle, const PreparedTexture& t);
 extern void d3d8_reloadTexture(uint32_t handle, const PreparedTexture& t);
 
+#if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+#define HAS_GLES2 1
+#include "render-webgl.h"
+#endif
+
 #ifdef _WIN32
 #include <d3d9.h>
 #include <SDL2/SDL_syswm.h>
@@ -220,6 +225,7 @@ RenderDevice::~RenderDevice() { shutdown(); }
 const char* RenderDevice::getBackendName() const {
     if (_backend == RENDERER_D3D8) return "DirectX 8";
     if (_backend == RENDERER_D3D9) return "DirectX 9";
+    if (_backend == RENDERER_WEBGL) return "WebGL 2.0 FastPath";
     return "OpenGL 1.1";
 }
 
@@ -230,6 +236,16 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
     _vpH = windowH;
     _statsEnabled = std::getenv("GD_RENDER_STATS") != nullptr;
     _statsTick = SDL_GetTicks();
+
+    #ifdef HAS_GLES2
+    _backend = RENDERER_WEBGL;
+    if (!webgl_init(window, windowW, windowH, _vsync)) {
+        std::cerr << "[RenderDevice] WebGL initialization failed.\n";
+        return false;
+    }
+    setViewport(0, 0, windowW, windowH, (float)screenWidth, (float)screenHeight);
+    return true;
+    #endif
 
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
@@ -268,6 +284,7 @@ bool RenderDevice::init(SDL_Window* window, RenderBackendType backend, int windo
     return true;
 }
 
+#ifndef HAS_GLES2
 void RenderDevice::_bindGLBatchPointers() {
     glVertexPointer(2, GL_FLOAT, sizeof(GLVertex), &_batchBuffer.gl[0].x);
     glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(GLVertex), &_batchBuffer.gl[0].color);
@@ -286,12 +303,8 @@ bool RenderDevice::_initOpenGL() {
     const char* glExt      = (const char*)glGetString(GL_EXTENSIONS);
     caps.name = glRenderer ? glRenderer : "unknown";
     caps.tier = gpu::tierFromName(gpu::lower(glRenderer), &caps.isIntelGMA);
-    #ifdef __EMSCRIPTEN__
-    caps.npot = true;   // WebGL 1: NPOT is fine with CLAMP_TO_EDGE and no mipmaps
-    #else
     int major = glVersion ? std::atoi(glVersion) : 1;
     caps.npot = major >= 2 || (glExt && std::strstr(glExt, "GL_ARB_texture_non_power_of_two"));
-    #endif
     caps.detected = true;
     std::cout << "[RenderDevice] GL renderer: " << caps.name << " | tier " << caps.tier
               << (caps.isIntelGMA ? " (Intel GMA)" : "") << " | NPOT " << (caps.npot ? "yes" : "no")
@@ -329,6 +342,10 @@ bool RenderDevice::_initOpenGL() {
 
     return true;
 }
+#else
+void RenderDevice::_bindGLBatchPointers() {}
+bool RenderDevice::_initOpenGL() { return true; }
+#endif
 
 #ifdef _WIN32
 bool RenderDevice::_initD3D9() {
@@ -519,6 +536,13 @@ void RenderDevice::_createD3D9BatchBuffers() {
 
 void RenderDevice::shutdown() {
     flushBatch();
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_shutdown();
+        _masterTextures.clear();
+        return;
+    }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_shutdown();
@@ -552,6 +576,13 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
     _scaleX = (logicalW > 0.0f) ? ((float)vpW / logicalW) : 1.0f;
     _scaleY = (logicalH > 0.0f) ? ((float)vpH / logicalH) : 1.0f;
 
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_setViewport(vpX, vpY, vpW, vpH, logicalW, logicalH);
+        return;
+    }
+    #endif
+
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_setViewport(vpX, vpY, vpW, vpH);
@@ -569,16 +600,24 @@ void RenderDevice::setViewport(int vpX, int vpY, int vpW, int vpH, float logical
     }
     #endif
 
+    #ifndef HAS_GLES2
     glViewport(vpX, vpY, vpW, vpH);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(0.0, logicalW, logicalH, 0.0, -1.0, 1.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    #endif
 }
 
 void RenderDevice::setVSync(bool enabled) {
     _vsync = enabled;
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_setVSync(enabled);
+        return;
+    }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_setVSync(enabled);
@@ -601,6 +640,9 @@ void RenderDevice::beginFrame() {
     _transX = 0.0f; _transY = 0.0f;
     _matrixStack.clear();
     _drawCalls = 0;
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) { webgl_beginFrame(); return; }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_beginFrame(); return; }
     if (_backend == RENDERER_D3D9) { _inScene = false; return; }
@@ -608,6 +650,9 @@ void RenderDevice::beginFrame() {
 }
 
 void RenderDevice::clear(float r, float g, float b, float a) {
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) { webgl_clear(r, g, b, a); return; }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_clear(r, g, b, a); return; }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
@@ -633,6 +678,9 @@ void RenderDevice::endFrame() {
             _statsFrames = 0; _statsTick = now;
         }
     }
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) { webgl_endFrame(); return; }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) { d3d8_endFrame(); return; }
     if (_backend == RENDERER_D3D9 && _d3d9Device) {
@@ -653,6 +701,14 @@ void RenderDevice::beginBatch() {
 void RenderDevice::flushBatch() {
     if (_batchVertCount == 0) return;
     ++_drawCalls;
+
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_flushBatch(_batchBuffer.gl, _batchVertCount, _currentTexID);
+        _batchVertCount = 0;
+        return;
+    }
+    #endif
 
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
@@ -702,6 +758,7 @@ void RenderDevice::flushBatch() {
     }
     #endif
 
+    #ifndef HAS_GLES2
     // OpenGL: blend func is constant (premultiplied alpha); pointers only rebound after an immediate path
     GLuint bindTex = (_currentTexID != 0) ? _currentTexID : _glWhiteTex;
     if (_lastGLTex != bindTex) {
@@ -712,6 +769,7 @@ void RenderDevice::flushBatch() {
 
     glDrawArrays(GL_QUADS, 0, (GLsizei)_batchVertCount);
     _batchVertCount = 0;
+    #endif
 }
 
 void RenderDevice::_selectTexture(uint32_t texID) {
@@ -745,7 +803,7 @@ void RenderDevice::batchQuad(uint32_t texID, float x0, float y0, float u0, float
         v0 *= _curVS; v1 *= _curVS; v2 *= _curVS; v3 *= _curVS;
     }
 
-    const bool isGL = _backend == RENDERER_OPENGL;
+    const bool isGL = _backend == RENDERER_OPENGL || _backend == RENDERER_WEBGL;
     uint32_t packedColor = packColorPMA(r, g, b, a, blend == BLEND_ADD, isGL);
     float ox = _transX, oy = _transY;
 
@@ -776,7 +834,7 @@ void RenderDevice::batchAxisAlignedQuad(uint32_t texID, float x0, float y0, floa
 
     if (_uvScaled) { u0 *= _curUS; u1 *= _curUS; v0 *= _curVS; v1 *= _curVS; }
 
-    const bool isGL = _backend == RENDERER_OPENGL;
+    const bool isGL = _backend == RENDERER_OPENGL || _backend == RENDERER_WEBGL;
     uint32_t packedColor = packColorPMA(r, g, b, a, blend == BLEND_ADD, isGL);
     float ox = _transX, oy = _transY;
 
@@ -814,6 +872,12 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
     ++_drawCalls;
     _currentBlend = blend;
     const int segments = std::clamp(gpu::knobs().circleSegments, 6, 16);
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_drawCircle(cx, cy, radius, r, g, b, a, filled, segments, _transX, _transY, blend);
+        return;
+    }
+    #endif
     const bool additive = blend == BLEND_ADD;
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
@@ -857,6 +921,7 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
     }
     #endif
 
+    #ifndef HAS_GLES2
     glDisable(GL_TEXTURE_2D);
     float verts[18 * 2];
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -888,6 +953,7 @@ void RenderDevice::drawCircle(float cx, float cy, float radius, float r, float g
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     glEnable(GL_TEXTURE_2D);
     _glPointersBound = false;   // lazily rebound by the next batch flush
+    #endif
 }
 
 void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsRGBA, size_t vertCount, BlendMode blend) {
@@ -896,6 +962,12 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
     ++_drawCalls;
     _currentBlend = blend;
     const bool additive = blend == BLEND_ADD;
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY);
+        return;
+    }
+    #endif
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
         d3d8_drawTriangleStrip(coordsXY, colorsRGBA, vertCount, additive, _transX, _transY, _scaleX, _scaleY);
@@ -934,6 +1006,7 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
     }
     #endif
 
+    #ifndef HAS_GLES2
     // GL: translate + premultiply on the CPU (no matrix push/pop, no float colour arrays)
     static std::vector<GLVertex> strip;
     strip.resize(vertCount);
@@ -949,6 +1022,7 @@ void RenderDevice::drawTriangleStrip(const float* coordsXY, const float* colorsR
     glTexCoordPointer(2, GL_FLOAT, sizeof(GLVertex), &strip[0].u);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, (GLsizei)vertCount);
     _glPointersBound = false;
+    #endif
 }
 
 static inline bool isBackgroundTextureName(const std::string& name) {
@@ -978,6 +1052,13 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
             }
         }
     }
+
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        webgl_drawRepeatedBackground(actualTexID, uvOffsetX, uvOffsetY, uvW, uvH, _logicalW, _logicalH, bgR, bgG, bgB);
+        return;
+    }
+    #endif
 
     #ifdef _WIN32
     if (_backend == RENDERER_D3D8) {
@@ -1027,6 +1108,7 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     }
     #endif
 
+    #ifndef HAS_GLES2
     glDisable(GL_BLEND);   // full-screen opaque pass: no blending
     if (_lastGLTex != actualTexID) {
         glBindTexture(GL_TEXTURE_2D, actualTexID);
@@ -1047,6 +1129,7 @@ void RenderDevice::drawRepeatedBackground(uint32_t texID, float scrollX, float c
     if (!_glPointersBound) _bindGLBatchPointers();
     glDrawArrays(GL_QUADS, 0, 4);
     glEnable(GL_BLEND);
+    #endif
 }
 
 uint32_t RenderDevice::registerTexture(const std::string& name, int width, int height, const void* rgbaPixels) {
@@ -1104,13 +1187,21 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
     }
     #endif
 
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        PreparedTexture t = prepareTexture(rgbaPixels, width, height, false, false, isBackgroundTextureName(name));
+        uint32_t glID = webgl_registerTexture(t, isBackgroundTextureName(name));
+        _recordTexUV(glID, t);
+        registerNames(glID);
+        _masterTextures[glID] = { name, width, height, std::vector<uint8_t>((const uint8_t*)rgbaPixels, (const uint8_t*)rgbaPixels + (size_t)width * height * 4) };
+        return glID;
+    }
+    #endif
+
+    #ifndef HAS_GLES2
     flushBatch();   // never change the bound texture underneath pending quads
 
-    #ifdef __EMSCRIPTEN__
-    const bool allowIntensity = false;   // GL_INTENSITY is not available through WebGL's legacy emulation
-    #else
     const bool allowIntensity = true;
-    #endif
     PreparedTexture t = prepareTexture(rgbaPixels, width, height, needPOT, allowIntensity, isBackgroundTextureName(name));
 
     GLuint glID = 0;
@@ -1134,11 +1225,7 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
             glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, t.width, t.height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, t.data.data());
             break;
         case PF_RGBA4444:
-            #ifdef __EMSCRIPTEN__
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-            #else
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-            #endif
             break;
         default:
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
@@ -1151,6 +1238,9 @@ uint32_t RenderDevice::registerTexture(const std::string& name, int width, int h
     registerNames(glID);
     _masterTextures[glID] = { name, width, height, std::vector<uint8_t>((const uint8_t*)rgbaPixels, (const uint8_t*)rgbaPixels + (size_t)width * height * 4) };
     return glID;
+    #else
+    return 0;
+    #endif
 }
 
 void RenderDevice::reloadTextures() {
@@ -1232,11 +1322,29 @@ void RenderDevice::reloadTextures() {
     }
     #endif
 
-    #ifdef __EMSCRIPTEN__
-    const bool allowIntensity = false;
-    #else
-    const bool allowIntensity = true;
+    #ifdef HAS_GLES2
+    if (_backend == RENDERER_WEBGL) {
+        for (const auto& pair : _masterTextures) {
+            uint32_t handle = pair.first;
+            const MasterTexture& master = pair.second;
+            PreparedTexture t = prepareTexture(master.rgba.data(), master.width, master.height, false, false, isBackgroundTextureName(master.name));
+            _recordTexUV(handle, t);
+            webgl_reloadTexture(handle, t, isBackgroundTextureName(master.name));
+        }
+        if (_currentTexID != 0) {
+            auto it = _texUV.find(_currentTexID);
+            if (it != _texUV.end()) { _uvScaled = true; _curUS = it->second.first; _curVS = it->second.second; }
+            else { _uvScaled = false; _curUS = _curVS = 1.0f; }
+        }
+        std::cout << "[RenderDevice] Dynamic texture reload (WebGL | " << gpu::presetName(gpu::resolvedPreset())
+                  << ", 16bit=" << (gpu::knobs().texture16bit ? "yes" : "no")
+                  << "): " << _masterTextures.size() << " textures updated.\n";
+        return;
+    }
     #endif
+
+    #ifndef HAS_GLES2
+    const bool allowIntensity = true;
 
     for (const auto& pair : _masterTextures) {
         uint32_t handle = pair.first;
@@ -1263,11 +1371,7 @@ void RenderDevice::reloadTextures() {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, t.width, t.height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, t.data.data());
                 break;
             case PF_RGBA4444:
-                #ifdef __EMSCRIPTEN__
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-                #else
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA4, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
-                #endif
                 break;
             default:
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, t.width, t.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, t.data.data());
@@ -1285,9 +1389,11 @@ void RenderDevice::reloadTextures() {
     std::cout << "[RenderDevice] Dynamic texture reload (OpenGL | " << gpu::presetName(gpu::resolvedPreset())
               << ", 16bit=" << (gpu::knobs().texture16bit ? "yes" : "no")
               << "): " << _masterTextures.size() << " textures updated.\n";
+    #endif
 }
 
 void RenderDevice::syncTexturesFromBootScene() {
+#ifndef __ANDROID__
     std::string assetsDir = "assets";
     if (!fs::exists(assetsDir)) assetsDir = "build/assets";
 
@@ -1341,6 +1447,7 @@ void RenderDevice::syncTexturesFromBootScene() {
     if (count > 0) {
         std::cout << "[RenderDevice] Extra textures synchronized: " << count << std::endl;
     }
+#endif
 }
 
 uint32_t RenderDevice::getTextureID(const std::string& name) {

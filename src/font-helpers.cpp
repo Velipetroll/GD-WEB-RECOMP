@@ -1,6 +1,7 @@
 #include "font-helpers.h"
 #include "boot-scene.h"
 #include "render-device.h"
+#include "asset-loader.h"
 #include <sstream>
 #include <vector>
 #include <iostream>
@@ -230,17 +231,22 @@ static void initSystemTrueTypeFont() {
         "/usr/share/fonts/gnu-free/FreeSans.ttf"
     };
     #endif
-
     std::vector<unsigned char> ttfBuffer;
-    for (const char* path : fontPaths) {
-        std::ifstream file(path, std::ios::binary | std::ios::ate);
-        if (file.is_open()) {
-            std::streamsize size = file.tellg();
-            file.seekg(0, std::ios::beg);
-            ttfBuffer.resize(size);
-            if (file.read((char*)ttfBuffer.data(), size)) {
-                std::cout << "[font-helpers] Loaded font: " << path << std::endl;
-                break;
+    std::vector<uint8_t> assetFont = loadAssetBinary("assets/font.ttf");
+    if (!assetFont.empty()) {
+        ttfBuffer.assign(assetFont.begin(), assetFont.end());
+        std::cout << "[font-helpers] Loaded font: assets/font.ttf" << std::endl;
+    } else {
+        for (const char* path : fontPaths) {
+            std::ifstream file(path, std::ios::binary | std::ios::ate);
+            if (file.is_open()) {
+                std::streamsize size = file.tellg();
+                file.seekg(0, std::ios::beg);
+                ttfBuffer.resize(size);
+                if (file.read((char*)ttfBuffer.data(), size)) {
+                    std::cout << "[font-helpers] Loaded font: " << path << std::endl;
+                    break;
+                }
             }
         }
     }

@@ -1,4 +1,5 @@
 #include "audio-manager.h"
+#include "asset-loader.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -58,7 +59,7 @@ void AudioManager::init() {
     };
 
     for (const auto& key : sfxList) {
-        std::string path = "assets/" + key + ".ogg";
+        std::string path = getAssetFilePath("assets/" + key + ".ogg");
         ma_sound* sfx = new ma_sound();
 
         ma_result res = ma_sound_init_from_file(eng, path.c_str(), MA_SOUND_FLAG_DECODE, NULL, NULL, sfx);
@@ -71,14 +72,15 @@ void AudioManager::init() {
         }
     }
 
+    std::string musicPath = getAssetFilePath("assets/StereoMadness.mp3");
     ma_sound* snd = new ma_sound();
-    result = ma_sound_init_from_file(eng, "assets/StereoMadness.mp3", MA_SOUND_FLAG_STREAM, NULL, NULL, snd);
+    result = ma_sound_init_from_file(eng, musicPath.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, snd);
     if (result == MA_SUCCESS) {
         ma_sound_set_looping(snd, MA_TRUE);
         _musicSound = snd;
         _musicLoaded = true;
     } else {
-        std::cerr << "[audio-manager] Could not find assets/StereoMadness.mp3" << std::endl;
+        std::cerr << "[audio-manager] Could not find " << musicPath << std::endl;
         delete snd;
         return;
     }
@@ -86,7 +88,7 @@ void AudioManager::init() {
     _peakEnvelope.clear();
     ma_decoder_config decConfig = ma_decoder_config_init(ma_format_f32, 1, 44100);
     ma_decoder decoder;
-    if (ma_decoder_init_file("assets/StereoMadness.mp3", &decConfig, &decoder) == MA_SUCCESS) {
+    if (ma_decoder_init_file(musicPath.c_str(), &decConfig, &decoder) == MA_SUCCESS) {
         float temp[1024];
         ma_uint64 readCount = 0;
         while (ma_decoder_read_pcm_frames(&decoder, temp, 1024, &readCount) == MA_SUCCESS && readCount > 0) {

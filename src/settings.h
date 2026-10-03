@@ -163,8 +163,16 @@ public:
         save();
     }
 
+    static std::string getSettingsPath() {
+#ifdef __ANDROID__
+        const char* internalDir = SDL_AndroidGetInternalStoragePath();
+        if (internalDir) return std::string(internalDir) + "/settings.cfg";
+#endif
+        return "settings.cfg";
+    }
+
     void load() {
-        std::ifstream file("settings.cfg");
+        std::ifstream file(getSettingsPath());
         if (!file.is_open()) {
             gpu::presetRef() = qualityIndex;
             save();
@@ -215,7 +223,7 @@ public:
     }
 
     void save() {
-        std::ofstream file("settings.cfg");
+        std::ofstream file(getSettingsPath());
         if (!file.is_open()) return;
         file << "musicVolume=" << musicVolume << "\n";
         file << "sfxVolume=" << sfxVolume << "\n";

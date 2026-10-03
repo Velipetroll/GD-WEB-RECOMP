@@ -61,7 +61,7 @@ endif
 
 CXXFLAGS += $(SDL_CFLAGS)
 
-.PHONY: all clean copy_assets print_os win32 win64 web
+.PHONY: all clean copy_assets print_os win32 win64 web android
 
 all: print_os $(TARGET) copy_assets
 
@@ -73,6 +73,9 @@ win64:
 
 web:
 	@./build_web.sh
+
+android:
+	@./build_android.sh
 
 print_os:
 	@echo "==> Compiling static executable for: $(DETECTED_OS)"

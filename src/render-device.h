@@ -11,7 +11,8 @@
 enum RenderBackendType {
     RENDERER_OPENGL = 0,
     RENDERER_D3D8   = 1,
-    RENDERER_D3D9   = 2
+    RENDERER_D3D9   = 2,
+    RENDERER_WEBGL  = 3
 };
 
 // Native pre-transformed vertex format for Direct3D 8 and Direct3D 9 (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1) - 28 bytes

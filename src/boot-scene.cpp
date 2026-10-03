@@ -7,6 +7,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "level-data-helpers.h"
+#include "asset-loader.h"
 
 // Forward declaration from font-helpers
 void defineFontFromFnt(const std::string& fontKey, const std::string& fntText);
@@ -18,23 +19,25 @@ BootScene::BootScene() {}
 BootScene::~BootScene() {}
 
 std::string BootScene::loadTextFile(const std::string& path) {
-    std::ifstream file(path);
-    if (!file.is_open()) {
+    std::string text = loadAssetText(path);
+    if (text.empty()) {
         std::cerr << "[BootScene] Failed to open file: " << path << std::endl;
-        return "";
     }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+    return text;
 }
 
 Texture BootScene::loadTexture(const std::string& key, const std::string& path) {
     Texture tex;
-    int channels;
+    int channels = 0;
     stbi_set_flip_vertically_on_load(false);
-    unsigned char* data = stbi_load(path.c_str(), &tex.width, &tex.height, &channels, 4);
+    std::vector<uint8_t> bin = loadAssetBinary(path);
+    if (bin.empty()) {
+        std::cerr << "[BootScene] Failed to load texture file: " << path << std::endl;
+        return tex;
+    }
+    unsigned char* data = stbi_load_from_memory(bin.data(), static_cast<int>(bin.size()), &tex.width, &tex.height, &channels, 4);
     if (!data) {
-        std::cerr << "[BootScene] Failed to load texture: " << path << std::endl;
+        std::cerr << "[BootScene] Failed to decode texture: " << path << std::endl;
         return tex;
     }
 

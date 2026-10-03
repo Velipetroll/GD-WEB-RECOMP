@@ -123,6 +123,81 @@ make
 
 ---
 
+### 4. Android Build (APK)
+
+You can build a fully standalone Android APK supporting **ARM64** (`arm64-v8a`), **ARM 32-bit** (`armeabi-v7a`), and **x86_64** architectures using the Android NDK, CMake, and Gradle. The engine runs on native **OpenGL ES 2.0** shaders, loads assets directly through `SDL_RWops` / `AAssetManager`, and plays music and low-latency audio via `miniaudio` (AAudio / OpenSL ES).
+
+#### Prerequisites
+* **Java Development Kit (JDK):** OpenJDK 17 recommended.
+* **Android SDK:** Platform `android-34` (or newer) and Build-Tools.
+* **Android NDK:** Version `26.3.11579264` (r26d LTS) or newer.
+* **Android CMake:** Version `3.22.1` or newer.
+
+```bash
+# Arch Linux / CachyOS / Manjaro
+sudo pacman -S jdk17-openjdk android-tools
+
+# Ubuntu / Debian
+sudo apt install openjdk-17-jdk android-sdk
+
+# Install NDK & CMake using sdkmanager (if not installed via Android Studio):
+sdkmanager "ndk;26.3.11579264" "cmake;3.22.1" "platforms;android-34" "build-tools;33.0.1"
+```
+
+#### Environment Setup
+Ensure your Android SDK and NDK paths are set in your environment (or specified in `android/local.properties`):
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/26.3.11579264"
+```
+
+Or write them to `android/local.properties`:
+```properties
+sdk.dir=/home/username/Android/Sdk
+ndk.dir=/home/username/Android/Sdk/ndk/26.3.11579264
+```
+
+#### Compile the APK
+Run the automated build script or use the makefile shortcut:
+
+```bash
+# Using make:
+make android
+
+# Or directly using the script:
+./build_android.sh
+```
+
+Alternatively, you can build manually with Gradle:
+```bash
+cd android
+./gradlew assembleDebug
+```
+
+#### Output Location
+The compiled debug APK will be created at:
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+*(Approx. 11 MB, containing all textures, fonts, audio, and native libraries for arm64-v8a, armeabi-v7a, and x86_64).*
+
+#### Installing and Testing on Android
+Connect your Android phone, tablet, or emulator with **USB Debugging** enabled:
+
+```bash
+# Verify the device is recognized
+adb devices
+
+# Install or update the APK
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+
+# View real-time game logs
+adb logcat -s "GeometryDash" "SDL"
+```
+
+---
+
 ### 📦 Standalone Portable Distribution
 
 To distribute the game on any Windows PC (no installer or dependencies needed), simply copy the `build/` folder:
@@ -215,6 +290,9 @@ Output files are exported to `Generated_Files/` (`GJ_WebSheet.png` and `GJ_WebSh
 │   ├── stb_vorbis.c              # Public domain OGG Vorbis decoder (for SFX)
 │   └── miniaudio.h               # Lightweight audio playback library
 │
+├── android/                      # Android Studio / Gradle project & SDLActivity
+├── build_android.sh              # Automated Android APK compilation script
+├── build_web.sh                  # WebAssembly / WebGL Emscripten build script
 ├── build_win32.sh                # Automated 32-bit Windows MinGW cross-compiler script
 ├── build_win64.sh                # Automated 64-bit Windows MinGW cross-compiler script
 └── Makefile                      # Incremental native build system with static linking rules

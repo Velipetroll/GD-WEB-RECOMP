@@ -21,3 +21,12 @@ Archivos_Generados/
 *.swo
 *~
 .DS_Store
+
+# Android & third party
+.gradle/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/.cxx/
+android/app/libs/
+third_party/
