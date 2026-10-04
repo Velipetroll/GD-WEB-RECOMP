@@ -37,18 +37,38 @@ public:
         "Auto", "Low", "Medium", "High"
     };
 
-    std::vector<FpsOption> fpsOptions = {
-        { "VSync",      0,   true  }, // 0
-        { "30 FPS",     30,  false }, // 1
-        { "60 FPS",     60,  false }, // 2
-        { "75 FPS",     75,  false }, // 3
-        { "90 FPS",     90,  false }, // 4
-        { "120 FPS",    120, false }, // 5
-        { "144 FPS",    144, false }, // 6
-        { "165 FPS",    165, false }, // 7
-        { "240 FPS",    240, false }, // 8
-        { "Unlimited",  0,   false }  // 9
-    };
+    std::vector<FpsOption> fpsOptions;
+
+    void updateFpsOptions() {
+        bool twoOptionsOnly = false;
+#if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+        twoOptionsOnly = true;
+#else
+        if (RenderDevice::get().getBackend() == RENDERER_D3D8 || currentBackend() == RENDERER_D3D8) {
+            twoOptionsOnly = true;
+        }
+#endif
+        if (twoOptionsOnly) {
+            fpsOptions = {
+                { "VSync",     0, true  },
+                { "Unlimited", 0, false }
+            };
+        } else {
+            fpsOptions = {
+                { "VSync",      0,   true  }, // 0
+                { "30 FPS",     30,  false }, // 1
+                { "60 FPS",     60,  false }, // 2
+                { "75 FPS",     75,  false }, // 3
+                { "90 FPS",     90,  false }, // 4
+                { "120 FPS",    120, false }, // 5
+                { "144 FPS",    144, false }, // 6
+                { "165 FPS",    165, false }, // 7
+                { "240 FPS",    240, false }, // 8
+                { "Unlimited",  0,   false }  // 9
+            };
+        }
+        fpsIndex = std::clamp(fpsIndex, 0, (int)fpsOptions.size() - 1);
+    }
 
     #if defined(_WIN32)
     #if !defined(_WIN64)
@@ -114,6 +134,7 @@ public:
         #if defined(_WIN32)
         if (rendererOptions.size() > 1) {
             rendererIndex = (rendererIndex + 1) % (int)rendererOptions.size();
+            updateFpsOptions();
             save();
         }
         #endif
@@ -123,6 +144,7 @@ public:
         #if defined(_WIN32)
         if (rendererOptions.size() > 1) {
             rendererIndex = (rendererIndex - 1 + (int)rendererOptions.size()) % (int)rendererOptions.size();
+            updateFpsOptions();
             save();
         }
         #endif
@@ -132,6 +154,7 @@ public:
         #if defined(_WIN32)
         if (!rendererOptions.empty()) {
             rendererIndex = std::clamp(idx, 0, (int)rendererOptions.size() - 1);
+            updateFpsOptions();
             save();
         }
         #endif
@@ -220,6 +243,7 @@ public:
             rendererIndex = std::clamp(rendererIndex, 0, (int)rendererOptions.size() - 1);
         }
         #endif
+        updateFpsOptions();
     }
 
     void save() {
@@ -239,5 +263,7 @@ public:
     }
 
 private:
-    Settings() {}
+    Settings() {
+        updateFpsOptions();
+    }
 };

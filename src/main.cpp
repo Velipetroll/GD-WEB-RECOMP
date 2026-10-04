@@ -221,6 +221,7 @@ int main(int argc, char* argv[]) {
         #endif
     }
 
+    Settings::get().updateFpsOptions();
     Settings::get().applyFpsSettings();
     RenderDevice::get().setVSync(Settings::get().currentFps().vsync);
     updateViewport(winW, winH, window);
