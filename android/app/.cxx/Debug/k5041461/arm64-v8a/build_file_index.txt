@@ -1,0 +1,11 @@
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/CMakeLists.txt
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/CMakeLists.txt
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake/CheckCPUArchitecture.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake/macros.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake/sdlchecks.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake/sdlfind.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake/sdlplatform.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/cmake_uninstall.cmake.in
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/include/SDL_config.h.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/include/SDL_revision.h.cmake
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/src/CMakeLists.txt

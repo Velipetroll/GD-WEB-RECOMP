@@ -1,0 +1,1029 @@
+Determining if the __GLIBC__ exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_87828 && [1/2] Building C object CMakeFiles/cmTC_87828.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_87828.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_87828.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_87828.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_87828.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: use of undeclared identifier '__GLIBC__'
+  return ((int*)(&__GLIBC__))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdlib.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef __GLIBC__
+  return ((int*)(&__GLIBC__))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Performing C SOURCE FILE Test CHECK_CPU_ARCHITECTURE_X86 failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_e3b8a && [1/2] Building C object CMakeFiles/cmTC_e3b8a.dir/src.c.o
+FAILED: CMakeFiles/cmTC_e3b8a.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCHECK_CPU_ARCHITECTURE_X86  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_e3b8a.dir/src.c.o -MF CMakeFiles/cmTC_e3b8a.dir/src.c.o.d -o CMakeFiles/cmTC_e3b8a.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:6:3: error: use of undeclared identifier 'choke'
+  choke
+  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+int main(int argc, char *argv[]) {
+#if defined(__i386__) || defined(__i486__) || defined(__i586__) || defined(__i686__) ||defined( __i386) || defined(_M_IX86)
+  return 0;
+#else
+  choke
+#endif
+}
+
+Performing C SOURCE FILE Test CHECK_CPU_ARCHITECTURE_ARM32 failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_b25af && [1/2] Building C object CMakeFiles/cmTC_b25af.dir/src.c.o
+FAILED: CMakeFiles/cmTC_b25af.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCHECK_CPU_ARCHITECTURE_ARM32  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_b25af.dir/src.c.o -MF CMakeFiles/cmTC_b25af.dir/src.c.o.d -o CMakeFiles/cmTC_b25af.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:6:3: error: use of undeclared identifier 'choke'
+  choke
+  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+int main(int argc, char *argv[]) {
+#if defined(__arm__) || defined(_M_ARM)
+  return 0;
+#else
+  choke
+#endif
+}
+
+Performing C SOURCE FILE Test CHECK_CPU_ARCHITECTURE_ARM64 failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_af612 && [1/2] Building C object CMakeFiles/cmTC_af612.dir/src.c.o
+FAILED: CMakeFiles/cmTC_af612.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCHECK_CPU_ARCHITECTURE_ARM64  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_af612.dir/src.c.o -MF CMakeFiles/cmTC_af612.dir/src.c.o.d -o CMakeFiles/cmTC_af612.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:6:3: error: use of undeclared identifier 'choke'
+  choke
+  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+int main(int argc, char *argv[]) {
+#if defined(__aarch64__) || defined(_M_ARM64)
+  return 0;
+#else
+  choke
+#endif
+}
+
+Performing C SOURCE FILE Test CHECK_CPU_ARCHITECTURE_LOONGARCH64 failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_cdac5 && [1/2] Building C object CMakeFiles/cmTC_cdac5.dir/src.c.o
+FAILED: CMakeFiles/cmTC_cdac5.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCHECK_CPU_ARCHITECTURE_LOONGARCH64  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_cdac5.dir/src.c.o -MF CMakeFiles/cmTC_cdac5.dir/src.c.o.d -o CMakeFiles/cmTC_cdac5.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:6:3: error: use of undeclared identifier 'choke'
+  choke
+  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+int main(int argc, char *argv[]) {
+#if defined(__loongarch64)
+  return 0;
+#else
+  choke
+#endif
+}
+
+Performing C SOURCE FILE Test HAVE_ALTIVEC_H_HDR failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_ac06a && [1/2] Building C object CMakeFiles/cmTC_ac06a.dir/src.c.o
+FAILED: CMakeFiles/cmTC_ac06a.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_ALTIVEC_H_HDR  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos" -maltivec -fPIE -MD -MT CMakeFiles/cmTC_ac06a.dir/src.c.o -MF CMakeFiles/cmTC_ac06a.dir/src.c.o.d -o CMakeFiles/cmTC_ac06a.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+clang: warning: argument unused during compilation: '-maltivec' [-Wunused-command-line-argument]
+In file included from /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:2:
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:13:2: error: "AltiVec support not enabled"
+#error "AltiVec support not enabled"
+ ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:50:19: error: unknown type name 'vector'
+static __inline__ vector signed char __ATTRS_o_ai vec_perm(
+                  ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:51:5: error: unknown type name 'vector'
+    vector signed char __a, vector signed char __b, vector unsigned char __c);
+    ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:51:29: error: unknown type name 'vector'
+    vector signed char __a, vector signed char __b, vector unsigned char __c);
+                            ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:51:53: error: unknown type name 'vector'
+    vector signed char __a, vector signed char __b, vector unsigned char __c);
+                                                    ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:53:19: error: unknown type name 'vector'
+static __inline__ vector unsigned char __ATTRS_o_ai
+                  ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:54:10: error: unknown type name 'vector'
+vec_perm(vector unsigned char __a, vector unsigned char __b,
+         ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:54:36: error: unknown type name 'vector'
+vec_perm(vector unsigned char __a, vector unsigned char __b,
+                                   ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:55:10: error: unknown type name 'vector'
+         vector unsigned char __c);
+         ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:57:19: error: unknown type name 'vector'
+static __inline__ vector bool char __ATTRS_o_ai
+                  ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:57:8: error: 'inline' can only appear on functions
+static __inline__ vector bool char __ATTRS_o_ai
+       ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:57:30: error: expected ';' after top level declarator
+static __inline__ vector bool char __ATTRS_o_ai
+                             ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:58:10: error: unknown type name 'vector'
+vec_perm(vector bool char __a, vector bool char __b, vector unsigned char __c);
+         ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:58:22: error: expected ')'
+vec_perm(vector bool char __a, vector bool char __b, vector unsigned char __c);
+                     ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:58:9: note: to match this '('
+vec_perm(vector bool char __a, vector bool char __b, vector unsigned char __c);
+        ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:60:19: error: unknown type name 'vector'
+static __inline__ vector short __ATTRS_o_ai vec_perm(vector signed short __a,
+                  ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:60:54: error: unknown type name 'vector'
+static __inline__ vector short __ATTRS_o_ai vec_perm(vector signed short __a,
+                                                     ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:61:54: error: unknown type name 'vector'
+                                                     vector signed short __b,
+                                                     ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:62:54: error: unknown type name 'vector'
+                                                     vector unsigned char __c);
+                                                     ^
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/17/include/altivec.h:64:19: error: unknown type name 'vector'
+static __inline__ vector unsigned short __ATTRS_o_ai
+                  ^
+fatal error: too many errors emitted, stopping now [-ferror-limit=]
+20 errors generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+          #include <altivec.h>
+          vector unsigned int vzero() {
+              return vec_splat_u32(0);
+          }
+          int main(int argc, char **argv) { return 0; }
+Performing C SOURCE FILE Test CPU_SUPPORTS_ALTIVEC failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_4fa94 && [1/2] Building C object CMakeFiles/cmTC_4fa94.dir/src.c.o
+FAILED: CMakeFiles/cmTC_4fa94.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DCPU_SUPPORTS_ALTIVEC  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos" -maltivec -fPIE -MD -MT CMakeFiles/cmTC_4fa94.dir/src.c.o -MF CMakeFiles/cmTC_4fa94.dir/src.c.o.d -o CMakeFiles/cmTC_4fa94.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+clang: warning: argument unused during compilation: '-maltivec' [-Wunused-command-line-argument]
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:2:11: error: unknown type name 'vector'
+          vector unsigned int vzero() {
+          ^
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:3:22: error: call to undeclared function 'vec_splat_u32'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+              return vec_splat_u32(0);
+                     ^
+2 errors generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+          vector unsigned int vzero() {
+              return vec_splat_u32(0);
+          }
+          int main(int argc, char **argv) { return 0; }
+Determining if the _strrev exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_04e2d && [1/2] Building C object CMakeFiles/cmTC_04e2d.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_04e2d.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_04e2d.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_04e2d.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_04e2d.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_strrev'; did you mean 'strsep'?
+  return ((int*)(&_strrev))[argc];
+                  ^~~~~~~
+                  strsep
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/string.h:171:17: note: 'strsep' declared here
+char* _Nullable strsep(char* _Nullable * _Nonnull __s_ptr, const char* _Nonnull __delimiter);
+                ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _strrev
+  return ((int*)(&_strrev))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _strupr exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_9798c && [1/2] Building C object CMakeFiles/cmTC_9798c.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_9798c.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_9798c.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_9798c.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_9798c.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_strupr'
+  return ((int*)(&_strupr))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _strupr
+  return ((int*)(&_strupr))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _strlwr exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_e82fa && [1/2] Building C object CMakeFiles/cmTC_e82fa.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_e82fa.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_e82fa.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_e82fa.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_e82fa.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_strlwr'; did you mean 'strstr'?
+  return ((int*)(&_strlwr))[argc];
+                  ^~~~~~~
+                  strstr
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/string.h:133:17: note: 'strstr' declared here
+char* _Nullable strstr(const char* _Nonnull __haystack, const char* _Nonnull __needle) __attribute_pure__;
+                ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _strlwr
+  return ((int*)(&_strlwr))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the index exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_1fb2c && [1/2] Building C object CMakeFiles/cmTC_1fb2c.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_1fb2c.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_1fb2c.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_1fb2c.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_1fb2c.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: call to undeclared library function 'index' with type 'char *(const char *, int)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  return ((int*)(&index))[argc];
+                  ^
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: note: include the header <strings.h> or explicitly provide a declaration for 'index'
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef index
+  return ((int*)(&index))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the rindex exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_7e188 && [1/2] Building C object CMakeFiles/cmTC_7e188.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_7e188.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_7e188.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_7e188.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_7e188.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: call to undeclared library function 'rindex' with type 'char *(const char *, int)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  return ((int*)(&rindex))[argc];
+                  ^
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: note: include the header <strings.h> or explicitly provide a declaration for 'rindex'
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef rindex
+  return ((int*)(&rindex))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the itoa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_21e33 && [1/2] Building C object CMakeFiles/cmTC_21e33.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_21e33.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_21e33.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_21e33.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_21e33.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier 'itoa'
+  return ((int*)(&itoa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef itoa
+  return ((int*)(&itoa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _ltoa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_6988f && [1/2] Building C object CMakeFiles/cmTC_6988f.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_6988f.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_6988f.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_6988f.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_6988f.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_ltoa'
+  return ((int*)(&_ltoa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _ltoa
+  return ((int*)(&_ltoa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _uitoa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_3e1cc && [1/2] Building C object CMakeFiles/cmTC_3e1cc.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_3e1cc.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_3e1cc.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_3e1cc.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_3e1cc.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_uitoa'
+  return ((int*)(&_uitoa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _uitoa
+  return ((int*)(&_uitoa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _ultoa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_d0e53 && [1/2] Building C object CMakeFiles/cmTC_d0e53.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_d0e53.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_d0e53.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_d0e53.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_d0e53.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_ultoa'
+  return ((int*)(&_ultoa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _ultoa
+  return ((int*)(&_ultoa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _i64toa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_55bba && [1/2] Building C object CMakeFiles/cmTC_55bba.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_55bba.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_55bba.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_55bba.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_55bba.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_i64toa'
+  return ((int*)(&_i64toa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _i64toa
+  return ((int*)(&_i64toa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _ui64toa exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_c8a64 && [1/2] Building C object CMakeFiles/cmTC_c8a64.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_c8a64.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_c8a64.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_c8a64.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_c8a64.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_ui64toa'
+  return ((int*)(&_ui64toa))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _ui64toa
+  return ((int*)(&_ui64toa))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _stricmp exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_15115 && [1/2] Building C object CMakeFiles/cmTC_15115.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_15115.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_15115.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_15115.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_15115.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_stricmp'
+  return ((int*)(&_stricmp))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _stricmp
+  return ((int*)(&_stricmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _strnicmp exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_8e810 && [1/2] Building C object CMakeFiles/cmTC_8e810.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_8e810.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_8e810.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_8e810.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_8e810.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_strnicmp'; did you mean 'strncmp'?
+  return ((int*)(&_strnicmp))[argc];
+                  ^~~~~~~~~
+                  strncmp
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/string.h:158:5: note: 'strncmp' declared here
+int strncmp(const char* _Nonnull __lhs, const char* _Nonnull __rhs, size_t __n) __attribute_pure__;
+    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _strnicmp
+  return ((int*)(&_strnicmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _wcsdup exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_b1fe0 && [1/2] Building C object CMakeFiles/cmTC_b1fe0.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_b1fe0.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_b1fe0.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_b1fe0.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_b1fe0.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_wcsdup'; did you mean 'wcsdup'?
+  return ((int*)(&_wcsdup))[argc];
+                  ^~~~~~~
+                  wcsdup
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/wchar.h:207:20: note: 'wcsdup' declared here
+wchar_t* _Nullable wcsdup(const wchar_t* _Nonnull __s);
+                   ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _wcsdup
+  return ((int*)(&_wcsdup))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _wcsicmp exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_55876 && [1/2] Building C object CMakeFiles/cmTC_55876.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_55876.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_55876.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_55876.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_55876.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_wcsicmp'
+  return ((int*)(&_wcsicmp))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _wcsicmp
+  return ((int*)(&_wcsicmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the _wcsnicmp exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_c51b2 && [1/2] Building C object CMakeFiles/cmTC_c51b2.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_c51b2.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_c51b2.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_c51b2.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_c51b2.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier '_wcsnicmp'; did you mean 'wcsncmp'?
+  return ((int*)(&_wcsnicmp))[argc];
+                  ^~~~~~~~~
+                  wcsncmp
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/wchar.h:117:5: note: 'wcsncmp' declared here
+int wcsncmp(const wchar_t* _Nonnull __lhs, const wchar_t* _Nonnull __rhs, size_t __n);
+    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _wcsnicmp
+  return ((int*)(&_wcsnicmp))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the fopen64 exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_18609 && [1/2] Building C object CMakeFiles/cmTC_18609.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_18609.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_18609.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_18609.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_18609.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier 'fopen64'; did you mean 'fopen'?
+  return ((int*)(&fopen64))[argc];
+                  ^~~~~~~
+                  fopen
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h:275:17: note: 'fopen' declared here
+FILE* _Nullable fopen(const char* _Nonnull __path, const char* _Nonnull __mode);
+                ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef fopen64
+  return ((int*)(&fopen64))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the fseeko64 exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_bbde7 && [1/2] Building C object CMakeFiles/cmTC_bbde7.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_bbde7.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_bbde7.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_bbde7.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_bbde7.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:14:19: error: use of undeclared identifier 'fseeko64'; did you mean 'fseeko'?
+  return ((int*)(&fseeko64))[argc];
+                  ^~~~~~~~
+                  fseeko
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdio.h:243:5: note: 'fseeko' declared here
+int fseeko(FILE* _Nonnull __fp, off_t __offset, int __whence);
+    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef fseeko64
+  return ((int*)(&fseeko64))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the sysctlbyname exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_e27ee && [1/2] Building C object CMakeFiles/cmTC_e27ee.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_e27ee.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_e27ee.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_e27ee.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_e27ee.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:3:10: fatal error: 'sys/sysctl.h' file not found
+#include <sys/sysctl.h>
+         ^~~~~~~~~~~~~~
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef sysctlbyname
+  return ((int*)(&sysctlbyname))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the elf_aux_info exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_73e5b && [1/2] Building C object CMakeFiles/cmTC_73e5b.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_73e5b.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_73e5b.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_73e5b.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_73e5b.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: use of undeclared identifier 'elf_aux_info'
+  return ((int*)(&elf_aux_info))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/auxv.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef elf_aux_info
+  return ((int*)(&elf_aux_info))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Determining if the memfd_create exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_86e99 && [1/2] Building C object CMakeFiles/cmTC_86e99.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_86e99.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_86e99.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_86e99.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_86e99.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: use of undeclared identifier 'memfd_create'
+  return ((int*)(&memfd_create))[argc];
+                  ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <sys/mman.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef memfd_create
+  return ((int*)(&memfd_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Performing C SOURCE FILE Test ICONV_IN_LIBC failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_cb5cd && [1/2] Building C object CMakeFiles/cmTC_cb5cd.dir/src.c.o
+FAILED: CMakeFiles/cmTC_cb5cd.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DICONV_IN_LIBC  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_cb5cd.dir/src.c.o -MF CMakeFiles/cmTC_cb5cd.dir/src.c.o.d -o CMakeFiles/cmTC_cb5cd.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:6:21: error: call to undeclared function 'iconv_open'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+            return !iconv_open(NULL,NULL);
+                    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+        #define LIBICONV_PLUG 1 /* in case libiconv header is in include path */
+        #include <stddef.h>
+        #include <iconv.h>
+        int main(int argc, char **argv) {
+            return !iconv_open(NULL,NULL);
+        }
+Performing C SOURCE FILE Test ICONV_IN_LIBICONV failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_3d33c && [1/2] Building C object CMakeFiles/cmTC_3d33c.dir/src.c.o
+FAILED: CMakeFiles/cmTC_3d33c.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DICONV_IN_LIBICONV  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_3d33c.dir/src.c.o -MF CMakeFiles/cmTC_3d33c.dir/src.c.o.d -o CMakeFiles/cmTC_3d33c.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c:5:21: error: call to undeclared function 'iconv_open'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+            return !iconv_open(NULL,NULL);
+                    ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+
+        #include <stddef.h>
+        #include <iconv.h>
+        int main(int argc, char **argv) {
+            return !iconv_open(NULL,NULL);
+        }
+Determining if the alloca exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_647a3 && [1/2] Building C object CMakeFiles/cmTC_647a3.dir/CheckSymbolExists.c.o
+FAILED: CMakeFiles/cmTC_647a3.dir/CheckSymbolExists.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_647a3.dir/CheckSymbolExists.c.o -MF CMakeFiles/cmTC_647a3.dir/CheckSymbolExists.c.o.d -o CMakeFiles/cmTC_647a3.dir/CheckSymbolExists.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: call to undeclared library function 'alloca' with type 'void *(unsigned long)'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  return ((int*)(&alloca))[argc];
+                  ^
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: include the header <stdlib.h> or explicitly provide a declaration for 'alloca'
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+File /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <malloc.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef alloca
+  return ((int*)(&alloca))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+Performing C SOURCE FILE Test HAVE_ARM_MODE failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_031bc && [1/2] Building C object CMakeFiles/cmTC_031bc.dir/src.c.o
+FAILED: CMakeFiles/cmTC_031bc.dir/src.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot -DHAVE_ARM_MODE  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos" -Werror=unused-command-line-argument -fPIE   -marm -MD -MT CMakeFiles/cmTC_031bc.dir/src.c.o -MF CMakeFiles/cmTC_031bc.dir/src.c.o.d -o CMakeFiles/cmTC_031bc.dir/src.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp/src.c
+clang: error: argument unused during compilation: '-marm' [-Werror,-Wunused-command-line-argument]
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+int main(void) { return 0; }
+Determining if files pthread_np.h exist failed with the following output:
+Change Dir: /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja cmTC_4d66c && [1/2] Building C object CMakeFiles/cmTC_4d66c.dir/HAVE_PTHREAD_NP_H.c.o
+FAILED: CMakeFiles/cmTC_4d66c.dir/HAVE_PTHREAD_NP_H.c.o 
+/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=x86_64-none-linux-android21 --sysroot=/home/varzonelp/Android/Sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/linux-x86_64/sysroot   -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -idirafter "/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/jni/SDL/src/video/khronos"  -D_GNU_SOURCE=1 -fPIE -MD -MT CMakeFiles/cmTC_4d66c.dir/HAVE_PTHREAD_NP_H.c.o -MF CMakeFiles/cmTC_4d66c.dir/HAVE_PTHREAD_NP_H.c.o.d -o CMakeFiles/cmTC_4d66c.dir/HAVE_PTHREAD_NP_H.c.o -c /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CheckIncludeFiles/HAVE_PTHREAD_NP_H.c
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64/CMakeFiles/CheckIncludeFiles/HAVE_PTHREAD_NP_H.c:2:10: fatal error: 'pthread_np.h' file not found
+#include <pthread_np.h>
+         ^~~~~~~~~~~~~~
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source:
+/* */
+#include <pthread_np.h>
+
+
+int main(void){return 0;}
+

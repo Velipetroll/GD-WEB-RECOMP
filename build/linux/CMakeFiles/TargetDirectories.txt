@@ -1,0 +1,3 @@
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/build/linux/CMakeFiles/GeometryDash.dir
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/build/linux/CMakeFiles/edit_cache.dir
+/home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/build/linux/CMakeFiles/rebuild_cache.dir
