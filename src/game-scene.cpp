@@ -1007,8 +1007,13 @@ void GameScene::_updateCompleteLightRays(float dt) {
 void GameScene::_renderCompleteLightRays() {
     if (_lightRays.empty()) return;
 
-    float originX = _level->endXPos - _cameraX + 60.0f;
-    float originY = flipY(_endPortalGameY) + _cameraY;
+    float originX = _level->endXPos + 60.0f;
+    float originY = flipY(_endPortalGameY);
+
+    const AtlasFrame* sqAf = AtlasManager::squareFrame ? AtlasManager::squareFrame : AtlasManager::findAtlasFrame("square.png");
+    uint32_t sheetId = 0;
+    auto itWs = BootScene::textures.find("GJ_WebSheet");
+    if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
 
     for (size_t ri = 0; ri < _lightRays.size(); ++ri) {
         if (!gpu::keepParticle(ri)) continue;
@@ -1034,11 +1039,18 @@ void GameScene::_renderCompleteLightRays() {
         rotP( wEnd  * 0.5f, hEnd, x2, y2);
         rotP(-wEnd  * 0.5f, hEnd, x3, y3);
 
-        RenderDevice::get().drawColorQuad(x0, y0, x1, y1, x2, y2, x3, y3,
+        if (sqAf && sheetId != 0) {
+            RenderDevice::get().batchQuad(sheetId,
+                                          x0, y0, sqAf->u0, sqAf->v0,
+                                          x1, y1, sqAf->u1, sqAf->v0,
+                                          x2, y2, sqAf->u1, sqAf->v1,
+                                          x3, y3, sqAf->u0, sqAf->v1,
                                           0.0f, 1.0f, 0.0f, ray.currentAlpha, BLEND_ADD);
+        } else {
+            RenderDevice::get().drawColorQuad(x0, y0, x1, y1, x2, y2, x3, y3,
+                                              0.0f, 1.0f, 0.0f, ray.currentAlpha, BLEND_ADD);
+        }
     }
-    RenderDevice::get().flushBatch();
-    applyBlendMode(BLEND_NORMAL);
 }
 
 struct FlightGlitter { float x, y, life, maxLife, scale; };
@@ -1593,10 +1605,9 @@ void GameScene::render() {
         RenderDevice::get().pushMatrix();
         RenderDevice::get().translate(-_cameraX, _cameraY);
         _level->renderLayer0(_cameraX, _cameraY);
+        _renderCompleteLightRays();
         _level->renderLayer1(_cameraX, _cameraY);
         RenderDevice::get().popMatrix();
-
-        _renderCompleteLightRays();
 
         if (!_flightGlitters.empty()) {
             for (size_t gi = 0; gi < _flightGlitters.size(); ++gi) {
