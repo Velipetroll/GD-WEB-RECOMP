@@ -711,8 +711,8 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
         var rect = c.getBoundingClientRect();
         if (rect.width <= 0) return $0;
         var clientX = (window.lastClientX !== undefined && window.lastClientX !== null) ? window.lastClientX : (event && event.clientX !== undefined ? event.clientX : $0);
-        return ((clientX - rect.left) / rect.width) * 1136.0;
-    }, mouseX);
+        return ((clientX - rect.left) / rect.width) * $1;
+    }, mouseX, (double)screenWidth);
 
     virtY = (float)EM_ASM_DOUBLE({
         var c = Module['canvas'] || document.getElementById('canvas') || document.querySelector('canvas');

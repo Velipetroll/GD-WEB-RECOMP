@@ -66,6 +66,18 @@ struct EmscriptenContext {
 static EmscriptenContext g_emCtx;
 
 static void emscriptenFrame() {
+    double cssW = 0, cssH = 0;
+    emscripten_get_element_css_size("#canvas", &cssW, &cssH);
+    int targetW = (int)cssW;
+    int targetH = (int)cssH;
+    if (targetW > 0 && targetH > 0) {
+        int curWinW = 0, curWinH = 0;
+        SDL_GetWindowSize(g_emCtx.window, &curWinW, &curWinH);
+        if (curWinW != targetW || curWinH != targetH) {
+            SDL_SetWindowSize(g_emCtx.window, targetW, targetH);
+        }
+    }
+
     int curW = 0, curH = 0;
     SDL_GetWindowSize(g_emCtx.window, &curW, &curH);
     if (curW > 0 && curH > 0 && (curW != g_emCtx.winW || curH != g_emCtx.winH)) {
@@ -156,6 +168,8 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     #ifdef __ANDROID__
     Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN;
+    #elif defined(__EMSCRIPTEN__)
+    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
     #else
     Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
     #endif
