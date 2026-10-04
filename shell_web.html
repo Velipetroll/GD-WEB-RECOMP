@@ -116,10 +116,33 @@
             canvas.focus();
         });
 
+        // Función global para desbloquear y reanudar el AudioContext ante cualquier interacción del usuario
+        const resumeAllAudioContexts = () => {
+            if (window.miniaudio) {
+                if (typeof window.miniaudio.unlock === "function") {
+                    try { window.miniaudio.unlock(); } catch(e) {}
+                }
+                if (window.miniaudio.devices) {
+                    for (let d of window.miniaudio.devices) {
+                        if (d && d.webaudio && d.webaudio.state === "suspended") {
+                            d.webaudio.resume().catch(() => {});
+                        }
+                    }
+                }
+            }
+            if (typeof AL !== "undefined" && AL.currentCtx && AL.currentCtx.audioCtx && AL.currentCtx.audioCtx.state === "suspended") {
+                AL.currentCtx.audioCtx.resume().catch(() => {});
+            }
+            if (typeof SDL2 !== "undefined" && SDL2.audioContext && SDL2.audioContext.state === "suspended") {
+                SDL2.audioContext.resume().catch(() => {});
+            }
+        };
+
         // Captura de posición global para evitar desfasajes en bordes
         window.lastClientX = 0;
         window.lastClientY = 0;
         const updatePointerPos = (e) => {
+            resumeAllAudioContexts();
             if (e.touches && e.touches.length > 0) {
                 window.lastClientX = e.touches[0].clientX;
                 window.lastClientY = e.touches[0].clientY;
@@ -132,6 +155,7 @@
         window.addEventListener("mousedown", updatePointerPos, { passive: true });
         window.addEventListener("touchstart", updatePointerPos, { passive: true });
         window.addEventListener("touchmove", updatePointerPos, { passive: true });
+        window.addEventListener("pointerdown", resumeAllAudioContexts, { passive: true });
 
         var Module = {
             canvas: canvas,
@@ -166,6 +190,7 @@
         };
 
         window.addEventListener("keydown", function(e) {
+            resumeAllAudioContexts();
             if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
                 e.preventDefault();
             }

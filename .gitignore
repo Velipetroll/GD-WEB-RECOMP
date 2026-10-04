@@ -30,3 +30,4 @@ android/app/build/
 android/app/.cxx/
 android/app/libs/
 third_party/
+DEPLOY_INSTRUCTIONS.md

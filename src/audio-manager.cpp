@@ -112,6 +112,9 @@ float AudioManager::_effectiveVolume() const {
 
 void AudioManager::startMusic() {
     if (!_initialized || !_musicLoaded || !_musicSound) return;
+    if (_engine) {
+        ma_engine_start(static_cast<ma_engine*>(_engine));
+    }
     ma_sound* snd = static_cast<ma_sound*>(_musicSound);
     ma_sound_seek_to_pcm_frame(snd, 0);
     ma_sound_set_volume(snd, _effectiveVolume());
@@ -135,6 +138,9 @@ void AudioManager::pauseMusic() {
 
 void AudioManager::resumeMusic() {
     if (_initialized && _musicLoaded && _musicSound) {
+        if (_engine) {
+            ma_engine_start(static_cast<ma_engine*>(_engine));
+        }
         ma_sound_start(static_cast<ma_sound*>(_musicSound));
     }
 }
