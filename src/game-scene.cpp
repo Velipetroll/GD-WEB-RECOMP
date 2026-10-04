@@ -759,12 +759,33 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
 
         if (_showSettingsPopup) {
             SettingsLayout l = _getSettingsLayout();
-            if (virtX >= l.sliderStartX - 15.0f * guiScale && virtX <= l.sliderStartX + l.sliderTrackWidth + 15.0f * guiScale &&
-                virtY >= l.fpsY - 14.0f * guiScale && virtY <= l.fpsY + 14.0f * guiScale) {
+            // Generous touch hit box: covers label, value text above track, and entire slider track
+            float minX = l.sliderStartX - 60.0f * guiScale;
+            float maxX = l.sliderStartX + l.sliderTrackWidth + 30.0f * guiScale;
+            float minY = l.fpsY - 30.0f * guiScale;
+            float maxY = l.fpsY + 30.0f * guiScale;
+
+            if (virtX >= minX && virtX <= maxX && virtY >= minY && virtY <= maxY) {
                 _draggingFpsSlider = true;
-                float rawVal = std::clamp((virtX - l.sliderStartX) / l.sliderTrackWidth, 0.0f, 1.0f);
-                int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
-                Settings::get().setFpsIndex(stepIdx);
+                if (Settings::get().fpsOptions.size() == 2) {
+                    // For 2 options (VSync / Unlimited):
+                    // Clicking left side -> VSync, right side -> Unlimited.
+                    // Clicking on the "FPS" label or text value toggles the setting.
+                    float midTrackX = l.sliderStartX + l.sliderTrackWidth * 0.5f;
+                    if (virtX < l.sliderStartX) {
+                        // Tapped on the "FPS" label or far left: toggle between VSync and Unlimited
+                        int nextIdx = (Settings::get().fpsIndex == 0) ? 1 : 0;
+                        Settings::get().setFpsIndex(nextIdx);
+                    } else if (virtX < midTrackX) {
+                        Settings::get().setFpsIndex(0); // VSync
+                    } else {
+                        Settings::get().setFpsIndex(1); // Unlimited
+                    }
+                } else {
+                    float rawVal = std::clamp((virtX - l.sliderStartX) / l.sliderTrackWidth, 0.0f, 1.0f);
+                    int stepIdx = (int)std::round(rawVal * (Settings::get().fpsOptions.size() - 1));
+                    Settings::get().setFpsIndex(stepIdx);
+                }
                 return;
             }
         }
