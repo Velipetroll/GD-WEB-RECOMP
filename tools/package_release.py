@@ -108,6 +108,8 @@ def main():
 
     # 3. Linux 64-bit
     linux_bin = os.path.join(BUILD_DIR, "GeometryDash")
+    if not os.path.isfile(linux_bin):
+        linux_bin = os.path.join(BUILD_DIR, "linux", "GeometryDash")
     if os.path.isfile(linux_bin):
         stage = os.path.join(DIST_DIR, "stage_linux")
         if os.path.exists(stage): shutil.rmtree(stage)
@@ -132,7 +134,14 @@ def main():
         shutil.rmtree(stage)
         print(f"✓ Linux x86_64: {out_tar} ({os.path.getsize(out_tar):,} bytes)")
 
-    # 4. WebAssembly & WebGL
+    # 4. Android APK
+    apk_bin = os.path.join(PROJECT_DIR, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+    if os.path.isfile(apk_bin):
+        out_apk = os.path.join(DIST_DIR, f"GeometryDash-{version}-android.apk")
+        shutil.copy2(apk_bin, out_apk)
+        print(f"✓ Android: {out_apk} ({os.path.getsize(out_apk):,} bytes)")
+
+    # 5. WebAssembly & WebGL
     web_dir = os.path.join(BUILD_DIR, "web")
     if os.path.isfile(os.path.join(web_dir, "index.html")):
         out_zip = os.path.join(DIST_DIR, f"GeometryDash-{version}-web.zip")
