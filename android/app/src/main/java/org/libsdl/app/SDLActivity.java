@@ -324,6 +324,15 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
         Log.v(TAG, "onCreate()");
         super.onCreate(savedInstanceState);
 
+        if (Build.VERSION.SDK_INT >= 28 /* Build.VERSION_CODES.P */) {
+            try {
+                WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                getWindow().setAttributes(lp);
+            } catch (Exception ignored) {
+            }
+        }
+
         try {
             Thread.currentThread().setName("SDLActivity");
         } catch (Exception e) {
@@ -782,6 +791,11 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
                                 window.getDecorView().setSystemUiVisibility(flags);
                                 window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
                                 window.clearFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN);
+                                if (Build.VERSION.SDK_INT >= 28 /* Build.VERSION_CODES.P */) {
+                                    WindowManager.LayoutParams lp = window.getAttributes();
+                                    lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+                                    window.setAttributes(lp);
+                                }
                                 SDLActivity.mFullscreenModeActive = true;
                             } else {
                                 int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_VISIBLE;
