@@ -139,6 +139,25 @@ void AudioManager::resumeMusic() {
     }
 }
 
+bool AudioManager::isMusicPlaying() const {
+    if (_initialized && _musicLoaded && _musicSound) {
+        return ma_sound_is_playing(static_cast<const ma_sound*>(_musicSound)) == MA_TRUE;
+    }
+    return false;
+}
+
+void AudioManager::suspendAudio() {
+    if (_initialized && _engine) {
+        ma_engine_stop(static_cast<ma_engine*>(_engine));
+    }
+}
+
+void AudioManager::resumeAudio() {
+    if (_initialized && _engine) {
+        ma_engine_start(static_cast<ma_engine*>(_engine));
+    }
+}
+
 void AudioManager::fadeInMusic(float durationMs) {
     startMusic();
     if (_musicLoaded && _musicSound) {

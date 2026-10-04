@@ -181,6 +181,8 @@ public:
     void restartLevel();
     void pauseGame();
     void resumeGame();
+    void onAppPause();
+    void onAppResume();
 
     void pushButton();
     void releaseButton();
@@ -248,6 +250,8 @@ private:
     bool _menuActive = true;
     bool _slideIn = false;
     bool _paused = false;
+    bool _appSuspended = false;
+    bool _musicWasPlayingBeforeSuspend = false;
     bool _levelWon = false;
     bool _firstPlay = true;
     bool _isFullscreen = false;

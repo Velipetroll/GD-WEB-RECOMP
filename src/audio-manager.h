@@ -15,6 +15,10 @@ public:
     void stopMusic();
     void pauseMusic();
     void resumeMusic();
+    bool isMusicPlaying() const;
+
+    void suspendAudio();
+    void resumeAudio();
 
     void fadeInMusic(float durationMs = 1000.0f);
     void fadeOutMusic(float durationMs = 1500.0f);

@@ -362,6 +362,36 @@ void GameScene::resumeGame() {
     _audio.resumeMusic();
 }
 
+void GameScene::onAppPause() {
+    if (_appSuspended) return;
+    _appSuspended = true;
+
+    // Record whether music was playing
+    _musicWasPlayingBeforeSuspend = _audio.isMusicPlaying();
+
+    // If in gameplay, pause the game so player doesn't crash while away
+    if (!_paused && !_menuActive && !_slideIn && !_state.isDead && !_levelWon) {
+        pauseGame();
+    } else {
+        _audio.pauseMusic();
+    }
+
+    _audio.suspendAudio();
+}
+
+void GameScene::onAppResume() {
+    if (!_appSuspended) return;
+    _appSuspended = false;
+
+    _audio.resumeAudio();
+
+    // If the game is still paused, don't resume music (pause menu doesn't play level music in GD).
+    // Only resume music if the game is NOT paused and music was playing before suspend.
+    if (!_paused && _musicWasPlayingBeforeSuspend) {
+        _audio.resumeMusic();
+    }
+}
+
 float GameScene::_getBaseScale(ButtonId id) const {
     switch (id) {
         case BTN_MENU_FS:
@@ -680,7 +710,7 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
         if (!c) return $0;
         var rect = c.getBoundingClientRect();
         if (rect.width <= 0) return $0;
-        var clientX = (window.lastClientX !== undefined && window.lastClientX !== 0) ? window.lastClientX : (event.clientX || $0);
+        var clientX = (window.lastClientX !== undefined && window.lastClientX !== null) ? window.lastClientX : (event && event.clientX !== undefined ? event.clientX : $0);
         return ((clientX - rect.left) / rect.width) * 1136.0;
     }, mouseX);
 
@@ -689,7 +719,7 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
         if (!c) return $0;
         var rect = c.getBoundingClientRect();
         if (rect.height <= 0) return $0;
-        var clientY = (window.lastClientY !== undefined && window.lastClientY !== 0) ? window.lastClientY : (event.clientY || $0);
+        var clientY = (window.lastClientY !== undefined && window.lastClientY !== null) ? window.lastClientY : (event && event.clientY !== undefined ? event.clientY : $0);
         return ((clientY - rect.top) / rect.height) * 640.0;
     }, mouseY);
     #else

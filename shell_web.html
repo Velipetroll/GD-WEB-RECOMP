@@ -173,6 +173,46 @@
                 e.preventDefault();
             }
         }, false);
+
+        // Suspender/Reanudar audio al cambiar de pestaña o minimizar
+        let wasAudioSuspendedByVisibility = false;
+        document.addEventListener("visibilitychange", function() {
+            const getAudioContexts = () => {
+                const list = [];
+                if (window.miniaudio && window.miniaudio.devices) {
+                    for (let d of window.miniaudio.devices) {
+                        if (d && d.webaudio) list.push(d.webaudio);
+                    }
+                }
+                if (typeof AL !== "undefined" && AL.currentCtx && AL.currentCtx.audioCtx) {
+                    list.push(AL.currentCtx.audioCtx);
+                }
+                if (typeof SDL2 !== "undefined" && SDL2.audioContext) {
+                    list.push(SDL2.audioContext);
+                }
+                return list;
+            };
+
+            if (document.hidden) {
+                const contexts = getAudioContexts();
+                for (let ctx of contexts) {
+                    if (ctx && ctx.state === "running") {
+                        ctx.suspend();
+                        wasAudioSuspendedByVisibility = true;
+                    }
+                }
+            } else {
+                if (wasAudioSuspendedByVisibility) {
+                    wasAudioSuspendedByVisibility = false;
+                    const contexts = getAudioContexts();
+                    for (let ctx of contexts) {
+                        if (ctx && ctx.state === "suspended") {
+                            ctx.resume();
+                        }
+                    }
+                }
+            }
+        });
     </script>
     {{{ SCRIPT }}}
 </body>

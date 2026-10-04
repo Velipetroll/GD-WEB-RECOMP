@@ -81,9 +81,13 @@ static void emscriptenFrame() {
                 event.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
                 event.window.event == SDL_WINDOWEVENT_RESTORED)
             {
-                SDL_GetWindowSize(g_emCtx.window, &g_emCtx.winW, &g_emCtx.winH);
-                updateViewport(g_emCtx.winW, g_emCtx.winH, g_emCtx.window);
             }
+        } else if (event.type == SDL_APP_WILLENTERBACKGROUND ||
+                   event.type == SDL_APP_DIDENTERBACKGROUND) {
+            g_emCtx.gameScene->onAppPause();
+        } else if (event.type == SDL_APP_WILLENTERFOREGROUND ||
+                   event.type == SDL_APP_DIDENTERFOREGROUND) {
+            g_emCtx.gameScene->onAppResume();
         } else {
             g_emCtx.gameScene->handleEvent(event, g_emCtx.winW, g_emCtx.winH, g_emCtx.window);
         }
@@ -266,7 +270,19 @@ int main(int argc, char* argv[]) {
                 {
                     SDL_GetWindowSize(window, &winW, &winH);
                     updateViewport(winW, winH, window);
+                } else if (event.window.event == SDL_WINDOWEVENT_MINIMIZED ||
+                           event.window.event == SDL_WINDOWEVENT_HIDDEN) {
+                    gameScene->onAppPause();
+                } else if (event.window.event == SDL_WINDOWEVENT_SHOWN ||
+                           event.window.event == SDL_WINDOWEVENT_RESTORED) {
+                    gameScene->onAppResume();
                 }
+            } else if (event.type == SDL_APP_WILLENTERBACKGROUND ||
+                       event.type == SDL_APP_DIDENTERBACKGROUND) {
+                gameScene->onAppPause();
+            } else if (event.type == SDL_APP_WILLENTERFOREGROUND ||
+                       event.type == SDL_APP_DIDENTERFOREGROUND) {
+                gameScene->onAppResume();
             } else {
                 gameScene->handleEvent(event, winW, winH, window);
             }
