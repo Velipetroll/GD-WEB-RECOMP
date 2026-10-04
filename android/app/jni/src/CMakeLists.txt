@@ -13,6 +13,7 @@ set(GAME_SOURCES
     ${SRC_DIR}/color-manager.cpp
     ${SRC_DIR}/font-helpers.cpp
     ${SRC_DIR}/game-scene.cpp
+    ${SRC_DIR}/game-scene-ui.cpp
     ${SRC_DIR}/level-data-helpers.cpp
     ${SRC_DIR}/level-renderer.cpp
     ${SRC_DIR}/main.cpp
@@ -32,6 +33,7 @@ add_library(main SHARED ${GAME_SOURCES})
 
 target_include_directories(main PRIVATE
     ${SRC_DIR}
+    ${SRC_DIR}/vendor
     ${CMAKE_CURRENT_SOURCE_DIR}/../SDL/include
 )
 

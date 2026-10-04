@@ -149,6 +149,35 @@ struct HitBox {
     }
 };
 
+inline float easeBounceOut(float t) {
+    if (t < (1.0f / 2.75f)) {
+        return 7.5625f * t * t;
+    } else if (t < (2.0f / 2.75f)) {
+        float p = t - (1.5f / 2.75f);
+        return 7.5625f * p * p + 0.75f;
+    } else if (t < (2.5f / 2.75f)) {
+        float p = t - (2.25f / 2.75f);
+        return 7.5625f * p * p + 0.9375f;
+    } else {
+        float p = t - (2.625f / 2.75f);
+        return 7.5625f * p * p + 0.984375f;
+    }
+}
+
+inline std::string formatPlayTime(float seconds) {
+    int totalSec = (int)std::floor(seconds);
+    int hours = totalSec / 3600;
+    int mins = (totalSec % 3600) / 60;
+    int secs = totalSec % 60;
+    char buf[32];
+    if (hours > 0) {
+        std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hours, mins, secs);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%02d:%02d", mins, secs);
+    }
+    return std::string(buf);
+}
+
 struct SettingsLayout {
     float popupW = 0.0f;
     float popupH = 0.0f;

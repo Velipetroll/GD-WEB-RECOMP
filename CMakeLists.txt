@@ -20,6 +20,7 @@ set(GAME_SOURCES
     src/color-manager.cpp
     src/font-helpers.cpp
     src/game-scene.cpp
+    src/game-scene-ui.cpp
     src/level-data-helpers.cpp
     src/level-renderer.cpp
     src/main.cpp
@@ -56,6 +57,7 @@ if(EMSCRIPTEN)
     endif()
 
     string(JOIN " " EMSCRIPTEN_LINK_FLAGS_STR ${EMSCRIPTEN_LINK_FLAGS})
+    target_include_directories(GeometryDash PRIVATE src src/vendor)
     set_target_properties(GeometryDash PROPERTIES
         OUTPUT_NAME "index"
         SUFFIX ".html"
@@ -77,7 +79,7 @@ elseif(WIN32)
     find_package(SDL2 REQUIRED)
     find_package(ZLIB REQUIRED)
 
-    target_include_directories(GeometryDash PRIVATE ${SDL2_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} src)
+    target_include_directories(GeometryDash PRIVATE ${SDL2_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} src src/vendor)
     target_link_libraries(GeometryDash PRIVATE
         ${SDL2_LIBRARIES}
         ${ZLIB_LIBRARIES}
@@ -116,6 +118,7 @@ else()
         ${OPENGL_INCLUDE_DIR}
         ${ZLIB_INCLUDE_DIRS}
         src
+        src/vendor
     )
 
     target_link_libraries(GeometryDash PRIVATE
