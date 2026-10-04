@@ -1,5 +1,0 @@
-/home/varzonelp/Android/Sdk/cmake/3.22.1/bin/ninja \
-  -C \
-  /home/varzonelp/PROYECTOS/GDSRC/gd-web-decompiled/android/app/.cxx/Debug/k5041461/x86_64 \
-  SDL2 \
-  main
