@@ -93,6 +93,8 @@ public:
     void renderGround(float cameraX, float cameraY);
 
     float endXPos = 0.0f;
+    float songOffset = 0.0f; // seconds, from kA13 in the level header
+    int startSpeed = 0;      // kA4: initial speed (0: 1x, 1: 0.7x, 2: 1.1x, 3: 1.3x, 4: 1.6x)
     std::vector<LevelObject> objects;
 
 private:

@@ -1,6 +1,8 @@
 #include "game-scene.h"
 #include "boot-scene.h"
 #include "font-helpers.h"
+#include "asset-loader.h"
+#include <filesystem>
 #include "win-effects.h"
 #include "settings.h"
 #include "render-device.h"
@@ -72,9 +74,8 @@ void GameScene::init() {
     _level = std::make_unique<LevelRenderer>();
     _player = std::make_unique<Player>(_state, *_level);
 
-    if (BootScene::textCache.find("level_1") != BootScene::textCache.end()) {
-        _level->loadLevel(BootScene::textCache["level_1"]);
-    }
+    _discoverLevels();
+    _selectLevel(0);
 
     _resetGameplayState();
     _slideGroundX = _cameraX;
@@ -162,6 +163,19 @@ void GameScene::_resetGameplayState() {
     _endSequenceTimer = 0.0f;
     _shakeTimer = 0.0f;
     _shakeIntensity = 0.0f;
+
+    // Initialize player speedMod from level header start speed (kA4)
+    // 0: 1x (default 1.0f), 1: 0.7x (slow), 2: 1.1x (fast), 3: 1.3x (very fast), 4: 1.6x (fastest)
+    if (_level) {
+        float startSpd = 1.0f;
+        if (_level->startSpeed == 1) startSpd = 0.7f / 0.9f;
+        else if (_level->startSpeed == 2) startSpd = 1.1f / 0.9f;
+        else if (_level->startSpeed == 3) startSpd = 1.3f / 0.9f;
+        else if (_level->startSpeed == 4) startSpd = 1.6f / 0.9f;
+        _state.speedMod = startSpd;
+    } else {
+        _state.speedMod = 1.0f;
+    }
     _flashAlpha = 0.0f;
     _lightRays.clear();
 
@@ -204,6 +218,73 @@ void GameScene::_hideEndLayer(std::function<void()> onComplete) {
     _endLayerHiding = true;
     _endLayerHideTimer = 0.0f;
     _endLayerHideCallback = onComplete;
+}
+
+void GameScene::_discoverLevels() {
+    _levelList.clear();
+
+    LevelEntry builtin;
+    builtin.name = "Stereo Madness";
+    builtin.custom = false;
+    auto it = BootScene::textCache.find("level_1");
+    if (it != BootScene::textCache.end()) builtin.data = it->second;
+    _levelList.push_back(builtin);
+
+    std::error_code ec;
+    std::vector<std::string> files;
+    for (const auto& entry : std::filesystem::directory_iterator("assets", ec)) {
+        if (ec) break;
+        if (!entry.is_regular_file()) continue;
+        std::string ext = entry.path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char ch) { return (char)std::tolower(ch); });
+        if (ext == ".gmd") files.push_back(entry.path().string());
+    }
+    std::sort(files.begin(), files.end());
+
+    for (const auto& path : files) {
+        std::string text = loadAssetText(path);
+        if (text.empty()) continue;
+        LevelEntry e;
+        e.name = PakoCompression::extractLevelName(text);
+        if (e.name.empty()) e.name = std::filesystem::path(path).stem().string();
+        e.custom = true;
+        e.data = text;
+        _levelList.push_back(e);
+        std::cout << "[GameScene] Found custom level: " << e.name << " (" << path << ")" << std::endl;
+    }
+}
+
+void GameScene::_selectLevel(int index) {
+    if (_levelList.empty()) return;
+    int n = (int)_levelList.size();
+    _selectedLevel = ((index % n) + n) % n;
+    float savedSlideX = _slideGroundX;
+    float savedMenuCamX = _menuCameraX;
+    float savedCamX = _cameraX;
+    float savedPlayTimer = _menuPlayTimer;
+    float savedGlitterTimer = _menuGlitterTimer;
+    float savedPlayBtnY = _menuPlayBtnY;
+    float savedMenuAnim = _menuAnimTimer;
+    auto savedParticles = _menuParticles;
+    bool keepScroll = _menuActive;
+
+    _level->loadLevel(_levelList[_selectedLevel].data);
+    _audio.setMusicStartOffset(_level->songOffset);
+    _resetGameplayState();
+
+    if (keepScroll) {
+        _slideGroundX = savedSlideX;
+        _menuCameraX = savedMenuCamX;
+        _cameraX = savedCamX;
+        _prevCameraX = savedCamX;
+        _menuPlayTimer = savedPlayTimer;
+        _menuGlitterTimer = savedGlitterTimer;
+        _menuPlayBtnY = savedPlayBtnY;
+        _menuAnimTimer = savedMenuAnim;
+        _menuParticles = savedParticles;
+    } else {
+        _slideGroundX = _cameraX;
+    }
 }
 
 void GameScene::startGame() {
@@ -656,6 +737,8 @@ void GameScene::handleEvent(const SDL_Event& event, int windowW, int windowH, SD
                     case BTN_MENU_STEAM: openURL("https://store.steampowered.com/app/322170/Geometry_Dash"); break;
                     case BTN_MENU_GOOGLE: openURL("https://play.google.com/store/apps/details?id=com.robtopx.geometryjump&hl=en"); break;
                     case BTN_MENU_APPLE: openURL("https://apps.apple.com/us/app/geometry-dash/id625334537"); break;
+                    case BTN_MENU_LEVEL_PREV: _selectLevel(_selectedLevel - 1); break;
+                    case BTN_MENU_LEVEL_NEXT: _selectLevel(_selectedLevel + 1); break;
                     case BTN_MENU_PLAY: _audio.playEffect("playSound_01"); startGame(); break;
                     case BTN_PAUSE_PLAY: resumeGame(); break;
                     case BTN_PAUSE_REPLAY: resumeGame(); restartLevel(); break;
@@ -1022,13 +1105,14 @@ void GameScene::update(float dt) {
 
     if (_slideIn) {
         float qDt = _quantizeDelta(dt);
-        float playerDx = qDt * gravityConst * physicsConst09;
+        float currentSpeedMod = (_state.speedMod > 0.0f) ? _state.speedMod : 1.0f;
+        float playerDx = qDt * gravityConst * physicsConst09 * currentSpeedMod;
         _playerWorldX += playerDx;
         float groundDx = playerDx * 0.25f;
         _slideGroundX += groundDx;
         _bgScrollX += groundDx * 0.1f;
 
-        _player->updateGroundRotation(qDt * physicsConst09);
+        _player->updateGroundRotation(qDt * physicsConst09 * currentSpeedMod);
         _player->update(dt, _playerWorldX, _cameraY, _cameraX);
         _level->stepGroundAnimation(dt);
         _level->updateGroundTiles(_slideGroundX, _cameraY, dt);
@@ -1190,7 +1274,8 @@ void GameScene::update(float dt) {
         _player->updateJump(subDt);
         _state.y += _state.yVelocity * subDt;
         _player->checkCollisions(_playerWorldX - groundYOffset, _cameraY);
-        _playerWorldX += subDx * gravityConst * physicsConst09;
+        float currentSpeedMod = (_state.speedMod > 0.0f) ? _state.speedMod : 1.0f;
+        _playerWorldX += subDx * gravityConst * physicsConst09 * currentSpeedMod;
 
         if (!_state.isFlying) {
             if (_state.onGround) _player->updateGroundRotation(subDt);

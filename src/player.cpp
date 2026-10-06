@@ -2,6 +2,7 @@
 #include "level-renderer.h"
 #include "boot-scene.h"
 #include "render-device.h"
+#include "win-effects.h"
 #include <algorithm>
 #include <iostream>
 #include <cmath>
@@ -107,7 +108,8 @@ void Player::exitShipMode() {
 void Player::runRotateAction() {
     rotateActionActive = true;
     rotateActionTime = 0.0f;
-    rotateActionDuration = 0.39f / physicsConst09;
+    float currentSpeed = (p.speedMod > 0.0f) ? p.speedMod : 1.0f;
+    rotateActionDuration = (0.39f / physicsConst09) / currentSpeed;
     rotateActionStart = _rotation;
     rotateActionTotal = 3.14159265f * flipMod();
 }
@@ -172,7 +174,8 @@ void Player::hitGround(float playerWorldX) {
     stopRotation();
 
     if (wasAirborne && !p.isFlying) {
-        _spawnLandDust(playerWorldX, flipY(p.y) + 30.0f);
+        float dustY = !p.gravityFlipped ? (flipY(p.y) + 30.0f) : (flipY(p.y) - 30.0f);
+        _spawnLandDust(playerWorldX, dustY);
     }
 }
 
@@ -248,6 +251,8 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
     p.onCeiling = false;
     bool landedOnBlock = false;
 
+    bool padBoostedThisFrame = false;
+
     const auto& nearby = _levelRenderer.getNearbySectionObjects(playerWorldX);
     for (LevelObject* item : nearby) {
         float left   = item->x - item->w * 0.5f;
@@ -274,10 +279,33 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
                     exitShipMode();
                 }
                 break;
+            case OBJ_PORTAL_SPEED:
+                if (!item->activated) {
+                    item->activated = true;
+                    p.speedMod = item->speedValue;
+                }
+                break;
+            case OBJ_PAD: {
+                if (!item->activated) {
+                    item->activated = true;
+                    padBoostedThisFrame = true;
+                    landedOnBlock = false;
+                    // In RobTop decompiled GJBaseGameLayer::bumpPlayer / gravBumpPlayer:
+                    // Pad bump mods: Yellow (type 8): 1.0, Pink (type 9): 0.65, Red (type 34): 1.25, Gravity (type 10): 0.8
+                    float bumpMod = 1.0f;
+                    if (item->padType == 9) bumpMod = 0.65f;
+                    else if (item->padType == 34) bumpMod = 1.25f;
+                    else if (item->padType == 10) bumpMod = 0.8f;
+                    bumpPlayer(bumpMod, item->padType, false, item);
+                }
+                break;
+            }
             case OBJ_HAZARD:
                 killPlayer(cameraY);
                 return;
             case OBJ_SOLID: {
+                if (padBoostedThisFrame) break;
+
                 float playerFootNow  = currentY - radius + innerTolerance;
                 float playerFootLast = lastY    - radius + innerTolerance;
                 float playerHeadNow  = currentY + radius - innerTolerance;
@@ -287,30 +315,78 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
                 bool sideHit = (playerWorldX + sideInset > left && playerWorldX - sideInset < right &&
                                 currentY + sideInset > bottom   && currentY - sideInset < top);
 
-                bool landingCondition = (p.yVelocity <= 0.0f || p.onGround) &&
-                                        (playerFootNow >= top || playerFootLast >= top);
+                // Normal gravity: floor is block top (landing when moving downwards).
+                // Inverted gravity: floor is block bottom (landing when moving upwards).
+                bool landingCondition = false;
+                if (!p.gravityFlipped) {
+                    landingCondition = (p.yVelocity <= 0.0f || p.onGround) &&
+                                       (playerFootNow >= top || playerFootLast >= top || (currentY >= top && lastY >= top));
+                } else {
+                    landingCondition = (p.yVelocity >= 0.0f || p.onGround) &&
+                                       (playerHeadNow <= bottom || playerHeadLast <= bottom || (currentY <= bottom && lastY <= bottom));
+                }
 
-                if (sideHit && !landingCondition) {
-                    killPlayer(cameraY);
-                    return;
+                // A side hit is a collision with the vertical face (wall) of a block.
+                // It should ONLY trigger if the player is NOT arriving from the floor/ceiling approach direction:
+                // - Normal gravity: not coming from above (lastY - radius >= top - 8.0f)
+                // - Inverted gravity: not coming from below (lastY + radius <= bottom + 8.0f)
+                bool isVerticalArrival = false;
+                if (!p.gravityFlipped) {
+                    if (lastY - radius >= top - 8.0f || playerFootNow >= top || playerFootLast >= top) {
+                        isVerticalArrival = true;
+                    }
+                } else {
+                    if (lastY + radius <= bottom + 8.0f || playerHeadNow <= bottom || playerHeadLast <= bottom) {
+                        isVerticalArrival = true;
+                    }
+                }
+
+                if (sideHit && !landingCondition && !isVerticalArrival) {
+                    // In flying mode hitting ceiling without being floor landing
+                    bool isCeilingHit = false;
+                    if (!p.gravityFlipped && p.isFlying && (playerHeadNow <= bottom || playerHeadLast <= bottom)) {
+                        isCeilingHit = true;
+                    } else if (p.gravityFlipped && p.isFlying && (playerFootNow >= top || playerFootLast >= top)) {
+                        isCeilingHit = true;
+                    }
+                    if (!isCeilingHit) {
+                        killPlayer(cameraY);
+                        return;
+                    }
                 }
 
                 if (playerWorldX + radius - 5.0f > left && playerWorldX - radius + 5.0f < right) {
                     if (landingCondition) {
-                        p.y = top + radius;
+                        if (!p.gravityFlipped) {
+                            p.y = top + radius;
+                            p.collideBottom = top;
+                        } else {
+                            p.y = bottom - radius;
+                            p.collideTop = bottom;
+                        }
                         hitGround(playerWorldX);
                         landedOnBlock = true;
-                        p.collideBottom = top;
                         if (!p.isFlying) _checkSnapJump(item, playerWorldX);
                         break;
                     }
-                    if ((playerHeadNow <= bottom || playerHeadLast <= bottom) &&
-                        (p.yVelocity >= 0.0f || p.onGround) && p.isFlying)
+
+                    // Hitting opposite ceiling in ship mode
+                    if (!p.gravityFlipped && p.isFlying && (playerHeadNow <= bottom || playerHeadLast <= bottom) &&
+                        (p.yVelocity >= 0.0f || p.onGround))
                     {
                         p.y = bottom - radius;
                         hitGround(playerWorldX);
                         p.onCeiling = true;
                         p.collideTop = bottom;
+                        break;
+                    }
+                    else if (p.gravityFlipped && p.isFlying && (playerFootNow >= top || playerFootLast >= top) &&
+                             (p.yVelocity <= 0.0f || p.onGround))
+                    {
+                        p.y = top + radius;
+                        hitGround(playerWorldX);
+                        p.onCeiling = true;
+                        p.collideBottom = top;
                         break;
                     }
                 }
@@ -321,17 +397,35 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
         }
     }
 
-    float floorY = _levelRenderer.getFloorY();
-    if (!landedOnBlock && p.y <= floorY + radius) {
-        p.y = floorY + radius;
-        hitGround(playerWorldX);
-    }
+    if (padBoostedThisFrame) return;
 
-    float ceilY = _levelRenderer.getCeilingY();
-    if (_levelRenderer.hasCeiling() && p.y >= ceilY - radius) {
-        p.y = ceilY - radius;
-        hitGround(playerWorldX);
-        p.onCeiling = true;
+    float floorY = _levelRenderer.getFloorY();
+    if (!p.gravityFlipped) {
+        if (!landedOnBlock && p.yVelocity <= 0.0f && p.y <= floorY + radius) {
+            p.y = floorY + radius;
+            hitGround(playerWorldX);
+        }
+
+        float ceilY = _levelRenderer.getCeilingY();
+        if (_levelRenderer.hasCeiling() && p.y >= ceilY - radius) {
+            p.y = ceilY - radius;
+            hitGround(playerWorldX);
+            p.onCeiling = true;
+        }
+    } else {
+        // Inverted gravity: floor is at ceiling level if ceiling exists
+        if (_levelRenderer.hasCeiling()) {
+            float ceilY = _levelRenderer.getCeilingY();
+            if (!landedOnBlock && p.yVelocity >= 0.0f && p.y >= ceilY - radius) {
+                p.y = ceilY - radius;
+                hitGround(playerWorldX);
+            }
+        }
+        if (p.y <= floorY + radius && p.isFlying) {
+            p.y = floorY + radius;
+            hitGround(playerWorldX);
+            p.onCeiling = true;
+        }
     }
 }
 
@@ -609,27 +703,27 @@ void Player::_updateExplosion(float dt) {
 }
 
 void Player::_spawnContinuousDust(float playerWorldX, float worldY) {
-    float angleDeg = 225.0f + (rand() % 91);
+    float angleDeg = !p.gravityFlipped ? (225.0f + (rand() % 91)) : (135.0f - (rand() % 91));
     float speed = 110.0f + (rand() % 81);
     float angleRad = angleDeg * 3.14159265f / 180.0f;
 
     CubeDustParticle pt;
     pt.x = playerWorldX - 20.0f;
-    pt.y = worldY + 26.0f;
+    pt.y = !p.gravityFlipped ? (worldY + 26.0f) : (worldY - 26.0f);
     pt.vx = std::cos(angleRad) * speed;
     pt.vy = std::sin(angleRad) * speed;
     pt.life = 0.0f;
     pt.maxLife = (150.0f + (rand() % 301)) / 1000.0f;
     pt.startScale = 0.5f;
     pt.endScale = 0.0f;
-    pt.gravityY = 600.0f;
+    pt.gravityY = 600.0f * flipMod();
     pt.r = 0.0f; pt.g = 1.0f; pt.b = 0.0f;
     _dustParticles.push_back(pt);
 }
 
 void Player::_spawnLandDust(float playerWorldX, float worldY) {
     for (int i = 0; i < 10; ++i) {
-        float angleDeg = 210.0f + (rand() % 121);
+        float angleDeg = !p.gravityFlipped ? (210.0f + (rand() % 121)) : (150.0f - (rand() % 121));
         float speed = 250.0f + (rand() % 101);
         float angleRad = angleDeg * 3.14159265f / 180.0f;
 
@@ -642,7 +736,7 @@ void Player::_spawnLandDust(float playerWorldX, float worldY) {
         pt.maxLife = (50.0f + (rand() % 551)) / 1000.0f;
         pt.startScale = 0.625f;
         pt.endScale = 0.0f;
-        pt.gravityY = 1000.0f;
+        pt.gravityY = 1000.0f * flipMod();
         pt.r = 0.0f; pt.g = 1.0f; pt.b = 0.0f;
         _dustParticles.push_back(pt);
     }
@@ -1137,4 +1231,91 @@ void Player::reset() {
 
     _streak.stop();
     _streak.reset();
+}
+
+// ---------------------------------------------------------------------------
+// Ported 1:1 from Geometry Dash decompiled PlayerObject & GJBaseGameLayer:
+// - PlayerObject::bumpPlayer(float boostMod, int padType, bool isPlayer2, GameObject* padObj)
+// - PlayerObject::propellPlayer(float boostMod, bool isPlayer2, int padType)
+// - PlayerObject::playBumpEffect(int padType, GameObject* padObj)
+// ---------------------------------------------------------------------------
+void Player::bumpPlayer(float boostMod, int padType, bool isPlayer2, const LevelObject* padObj) {
+    p.onGround = false;
+    p.canJump = false;
+    p.isJumping = true;
+
+    propellPlayer(boostMod, isPlayer2, padType);
+    playBumpEffect(padType, padObj);
+}
+
+void Player::propellPlayer(float boostMod, bool isPlayer2, int padType) {
+    (void)isPlayer2;
+    p.onGround = false;
+    p.canJump = false;
+    p.isJumping = true;
+
+    // In decompiled PlayerObject::propellPlayer:
+    // PlayerObject::setYVelocity(..., (boostMod * 16.0) * flipMod * scale);
+    // In GD-web coordinates, scale factor is exactly 2.0x compared to RobTop points:
+    // - RobTop normal jump: 11.180032f  -> GD-web: 22.360064f (11.180032 * 2.0)
+    // - RobTop gravity:     0.958199f   -> GD-web: 1.916398f  (0.958199 * 2.0)
+    // - RobTop pad boost:   16.0f       -> GD-web: 32.0f      (16.0 * 2.0)
+    // Yellow pad (boostMod = 1.0)  -> 32.0f
+    // Pink pad   (boostMod = 0.65) -> 20.8f
+    // Red pad    (boostMod = 1.25) -> 40.0f
+    // Gravity pad(boostMod = 0.8)  -> 25.6f
+    const float basePadVelocity = 32.0f;
+    p.yVelocity = basePadVelocity * boostMod * flipMod();
+
+    if (padType == 10) {
+        // In decompiled GJBaseGameLayer::gravBumpPlayer:
+        // PlayerObject::propellPlayer(a2, 0.8, v10, 10);
+        // GJBaseGameLayer::flipGravity(this, a2, v8, 1);
+        // flipGravity is called AFTER propellPlayer sets yVelocity.
+        flipGravity(!p.gravityFlipped);
+    }
+
+    // PlayerObject::runRotateAction(this, 0, 7)
+    runRotateAction();
+}
+
+void Player::playBumpEffect(int padType, const LevelObject* padObj) {
+    // In decompiled PlayerObject::playBumpEffect:
+    // Creates a CCCircleWave expanding wave with radius 40, duration 0.25s,
+    // centered at player / pad position with pad tint.
+    // Color mapping from decompiled playBumpEffect:
+    // Type 8  (Yellow):  RGB (255, 200, 0) -> hex 0xFFC800
+    // Type 9  (Pink):    RGB (255, 0, 255) -> hex 0xFF00FF
+    // Type 34 (Red):     RGB (255, 50, 50) -> hex 0xFF3232
+    // Type 10 (Cyan):    RGB (0, 255, 255) -> hex 0x00FFFF
+    unsigned int waveColor = 0xFFC800; // Yellow default
+    if (padType == 9) {
+        waveColor = 0xFF00FF; // Pink
+    } else if (padType == 34) {
+        waveColor = 0xFF3232; // Red
+    } else if (padType == 10) {
+        waveColor = 0x00FFFF; // Cyan
+    }
+
+    float waveX = padObj ? padObj->x : (_lastWorldX);
+    float waveY = padObj ? flipY(padObj->y) : flipY(p.y);
+
+    // Expand from start radius 12.0 to 48.0 over 250ms (0.25s) with additive blend
+    WinEffects::drawExpandingRing(waveX, waveY, 12.0f, 48.0f, 250.0f, false, false, waveColor, 0.0f);
+}
+
+void Player::flipGravity(bool flipped) {
+    if (p.gravityFlipped != flipped) {
+        p.gravityFlipped = flipped;
+        // In decompiled PlayerObject::flipGravity:
+        // p.yVelocity *= 0.5f;
+        // updatePlayerArt() inverts Y scale:
+        float scaleY = p.gravityFlipped ? -1.0f : 1.0f;
+        _playerSpriteLayer.setScale(1.0f, scaleY);
+        _playerOverlayLayer.setScale(1.0f, scaleY);
+        _playerExtraLayer.setScale(1.0f, scaleY);
+        _shipSpriteLayer.setScale(1.0f, scaleY);
+        _shipOverlayLayer.setScale(1.0f, scaleY);
+        _shipExtraLayer.setScale(1.0f, scaleY);
+    }
 }

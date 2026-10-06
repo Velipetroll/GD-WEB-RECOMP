@@ -84,7 +84,7 @@ void BootScene::preload(SDL_Window* window) {
         {"square04_001",   "assets/square04_001.png",    true},
         {"GJ_square02",    "assets/GJ_square02.png",     true},
         {"GJ_WebSheetJson","assets/GJ_WebSheet.json",    false},
-        {"level_1",        "assets/1.txt",               false}
+        {"level_1",        "assets/1.txt"    ,               false}
     };
 
     for (size_t i = 0; i < tasks.size(); ++i) {

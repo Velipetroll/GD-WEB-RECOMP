@@ -103,6 +103,10 @@ public:
     void updateShipRotation(float dt);
 
     void playEndAnimation(float targetX, std::function<void()> onComplete, float targetY = 240.0f);
+    void bumpPlayer(float boostMod, int padType, bool isPlayer2 = false, const LevelObject* padObj = nullptr);
+    void propellPlayer(float boostMod, bool isPlayer2, int padType);
+    void playBumpEffect(int padType, const LevelObject* padObj);
+    void flipGravity(bool flipped);
 
     PlayerPhysicsState& p;
 

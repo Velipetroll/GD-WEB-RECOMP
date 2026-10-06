@@ -28,7 +28,9 @@ enum ObjectType : uint8_t {
     OBJ_SOLID,
     OBJ_HAZARD,
     OBJ_PORTAL_FLY,
-    OBJ_PORTAL_CUBE
+    OBJ_PORTAL_CUBE,
+    OBJ_PAD,
+    OBJ_PORTAL_SPEED
 };
 
 class LevelObject {
@@ -42,6 +44,8 @@ public:
     bool activated = false;
 
     int id = 0;
+    int padType = 8; // 8: Yellow, 9: Pink, 34: Red
+    float speedValue = 1.0f; // Speed multiplier for speed portals
     float rotation = 0.0f;
     bool flipX = false;
     bool flipY = false;

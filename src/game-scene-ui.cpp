@@ -183,6 +183,16 @@ ButtonId GameScene::_checkButtonHit(float vx, float vy) {
         HitBox playBox = _getButtonHitBox("GJ_playBtn_001.png", midX, playY, BTN_MENU_PLAY, guiScale, 1.0f);
         if (playBox.contains(vx, vy)) return BTN_MENU_PLAY;
 
+        if (_levelList.size() > 1) {
+            float selY = playY + 130.0f * guiScale;
+            HitBox prevBox = { midX - 170.0f * guiScale, selY, 30.0f * guiScale, 28.0f * guiScale };
+            if (prevBox.contains(vx, vy)) return BTN_MENU_LEVEL_PREV;
+            HitBox nextBox = { midX + 170.0f * guiScale, selY, 30.0f * guiScale, 28.0f * guiScale };
+            if (nextBox.contains(vx, vy)) return BTN_MENU_LEVEL_NEXT;
+            HitBox nameBox = { midX, selY, 140.0f * guiScale, 28.0f * guiScale };
+            if (nameBox.contains(vx, vy)) return BTN_MENU_LEVEL_NEXT;
+        }
+
         return BTN_COUNT;
     }
 
@@ -322,6 +332,22 @@ void GameScene::_renderMenu() {
         float ph = origPlayH * playExitScale * baseScale * guiScale;
         float playY = midY + (_menuPlayBtnY - 320.0f) * guiScale;
         drawAtlasFrame("GJ_playBtn_001.png", midX, playY, pw, ph);
+    }
+
+    if (_levelList.size() > 1 && playExitScale > 0.01f) {
+        float selY = playY + 130.0f * guiScale;
+        const LevelEntry& le = _levelList[_selectedLevel];
+        float a = playExitScale;
+        RenderDevice::get().drawRect(midX - 140.0f * guiScale, selY - 28.0f * guiScale, 280.0f * guiScale, 56.0f * guiScale, 0.0f, 0.0f, 0.0f, 0.45f * a);
+        float prevS = _btnAnims[BTN_MENU_LEVEL_PREV].scale;
+        float nextS = _btnAnims[BTN_MENU_LEVEL_NEXT].scale;
+        drawBitmapText("bigFont", "<", midX - 170.0f * guiScale, selY, 0.8f * prevS * guiScale, 1.0f, 1.0f, 1.0f, a, true);
+        drawBitmapText("bigFont", ">", midX + 170.0f * guiScale, selY, 0.8f * nextS * guiScale, 1.0f, 1.0f, 1.0f, a, true);
+        float nameY = le.custom ? selY - 8.0f * guiScale : selY;
+        drawBitmapText("goldFont", le.name, midX, nameY, 0.6f * guiScale, 1.0f, 1.0f, 1.0f, a, true);
+        if (le.custom) {
+            drawBitmapText("bigFont", "Custom", midX, selY + 14.0f * guiScale, 0.3f * guiScale, 0.4f, 0.8f, 1.0f, a, true);
+        }
     }
 
     float bottomY = midY + (555.0f - 320.0f) * guiScale + ease * (screenHeight + 50.0f - 555.0f) * guiScale;

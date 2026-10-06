@@ -13,6 +13,7 @@ public:
     bool gravityFlipped;
     bool isFlying;
     bool wasBoosted;
+    float speedMod;
 
     float collideTop;
     float collideBottom;
@@ -38,6 +39,7 @@ public:
         gravityFlipped = false;
         isFlying = false;
         wasBoosted = false;
+        speedMod = 1.0f;
 
         collideTop = 0.0f;
         collideBottom = 0.0f;

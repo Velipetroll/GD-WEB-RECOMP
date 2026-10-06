@@ -319,7 +319,9 @@ void LevelRenderer::_addGlowSprite(float x, float y, const std::string& frame, c
 }
 
 void LevelRenderer::loadLevel(const std::string& levelStr) {
-    ParsedLevel parsed = PakoCompression::helperFn17(levelStr);
+    ParsedLevel parsed = PakoCompression::helperFn17(PakoCompression::extractLevelString(levelStr));
+    songOffset = parsed.songOffset;
+    startSpeed = parsed.startSpeed;
     _spawnLevelObjects(parsed.objects);
 }
 
@@ -443,6 +445,21 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
                 mainSprite.b =  (def->tint        & 0xFF) / 255.0f;
             }
 
+            if (def->type == "pad") {
+                mainSprite.audioScale = true;
+                mainSprite.w = 54.0f * item.scale;
+                mainSprite.h = 24.0f * item.scale;
+                bool isUpsideDown = (item.rot == 180.0f || item.flipY);
+                if (isUpsideDown) {
+                    // Ceiling pad (pointing down): base at drawY + 4.0f, extends downwards
+                    mainSprite.y = (drawY + 4.0f) - mainSprite.h * 0.5f + fdy;
+                } else {
+                    // Ground/block pad (pointing up): base at drawY - 4.0f, extends upwards
+                    mainSprite.y = (drawY - 4.0f) + mainSprite.h * 0.5f + fdy;
+                }
+                mainSprite.baseY = mainSprite.y;
+            }
+
             _addToSection(mainSprite);
 
             if (def->type == "solid" || def->type == "hazard") {
@@ -557,6 +574,37 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
             std::string pType = (def->sub == "fly") ? portalFly : portalCube;
             objects.emplace_back(pType, objX, objY, 90.0f, def->gridH * baseUnit);
             objects.back().portalY = objY;
+            _addCollisionToSection(objects.size() - 1, objX);
+        }
+        else if (def->type == "speed") {
+            objects.emplace_back("speed", objX, objY, 90.0f, def->gridH * baseUnit);
+            // Multipliers relative to 1x normal speed (1.0f):
+            // 200 (slow / 0.7): 0.7f / 0.9f
+            // 201 (normal / 0.9): 1.0f (exact default)
+            // 202 (fast / 1.1): 1.1f / 0.9f
+            // 203 (very_fast / 1.3): 1.3f / 0.9f
+            // 1334 (fastest / 1.6): 1.6f / 0.9f
+            float spd = 1.0f;
+            if (item.id == 200) spd = 0.7f / 0.9f;
+            else if (item.id == 201) spd = 1.0f;
+            else if (item.id == 202) spd = 1.1f / 0.9f;
+            else if (item.id == 203) spd = 1.3f / 0.9f;
+            else if (item.id == 1334) spd = 1.6f / 0.9f;
+            objects.back().speedValue = spd;
+            _addCollisionToSection(objects.size() - 1, objX);
+        }
+        else if (def->type == "pad") {
+            // Original GD pad hitbox: small box centered on the object (25x5 editor units, x2 here),
+            // so the pad triggers at the same horizontal point as in the original game.
+            float padH = 10.0f * item.scale;
+            float padW = 50.0f * item.scale;
+            float padCenterY = objY;
+            objects.emplace_back("pad", objX, padCenterY, padW, padH);
+            if (item.id == 35) objects.back().padType = 8;         // YellowJumpPad (8)
+            else if (item.id == 140) objects.back().padType = 9;   // PinkJumpPad (9, saltar poco)
+            else if (item.id == 1332) objects.back().padType = 34; // RedJumpPad (34, saltar muy alto)
+            else if (item.id == 67) objects.back().padType = 10;   // GravityPad (10)
+            else objects.back().padType = 8;
             _addCollisionToSection(objects.size() - 1, objX);
         }
     }
