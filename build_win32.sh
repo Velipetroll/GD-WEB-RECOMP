@@ -59,8 +59,9 @@ if [ -f "resource.rc" ]; then
 fi
 
 # Compile C++ sources
-CXXFLAGS="-O3 -flto -std=c++17 -march=pentium4 -msse2 -mfpmath=sse -fno-math-errno -fomit-frame-pointer -DNDEBUG -I$SDL_DIR/include/SDL2 -I$SDL_DIR/include"
-for src in src/*.cpp; do
+INCLUDES="-Isrc -Isrc/assets -Isrc/vendor -Isrc/audio -Isrc/scenes -Isrc/utils -Isrc/player -Isrc/level -Isrc/sprite -Isrc/trail -Isrc/render -I$SDL_DIR/include/SDL2 -I$SDL_DIR/include"
+CXXFLAGS="-O3 -flto -std=c++17 -march=pentium4 -msse2 -mfpmath=sse -fno-math-errno -fomit-frame-pointer -DNDEBUG $INCLUDES"
+for src in $(find src -name "*.cpp"); do
     obj="build/obj32/$(basename "$src" .cpp).o"
     echo "  [CXX] $src -> $obj"
     $CXX $CXXFLAGS -c "$src" -o "$obj"

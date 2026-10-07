@@ -2,7 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <SDL2/SDL_opengl.h>
-#include "constants.h"
+#include "utils/constants.h"
 
 struct ExpandingRing {
     float x = 0.0f;
@@ -16,6 +16,7 @@ struct ExpandingRing {
     bool pulse = false;
     unsigned int color = 16777215;
     bool done = false;
+    bool isWorld = false;
 };
 
 struct WinParticle {
@@ -35,11 +36,16 @@ public:
                                   bool pulse = false, unsigned int color = 16777215,
                                   float delayMs = 0.0f);
 
+    static void drawExpandingRingWorld(float x, float y, float startR, float endR,
+                                       float durationMs, bool filled = false,
+                                       bool pulse = false, unsigned int color = 16777215,
+                                       float delayMs = 0.0f);
+
     static void spawnFinishParticles(unsigned int color1 = 16777215, unsigned int color2 = 16777215, float delayMs = 0.0f);
     static void spawnStarParticles(float x, float y, int count = 30);
 
     static void update(float dt);
-    static void render();
+    static void render(float cameraX = 0.0f, float cameraY = 0.0f);
     static void reset();
 
 private:
@@ -51,5 +57,10 @@ void drawExpandingRing(float x, float y, float startR, float endR,
                        float durationMs, bool filled = false,
                        bool pulse = false, unsigned int color = 16777215,
                        float delayMs = 0.0f);
+
+void drawExpandingRingWorld(float x, float y, float startR, float endR,
+                            float durationMs, bool filled = false,
+                            bool pulse = false, unsigned int color = 16777215,
+                            float delayMs = 0.0f);
 
 void spawnFinishParticles(unsigned int color1 = 16777215, unsigned int color2 = 16777215, float delayMs = 0.0f);

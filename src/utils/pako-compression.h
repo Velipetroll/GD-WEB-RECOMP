@@ -3,7 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
-#include "constants.h"
+#include "utils/constants.h"
 
 struct ObjectChild {
     std::string frame = "";
@@ -56,6 +56,9 @@ struct LevelObjectRaw {
 
 struct ParsedLevel {
     std::string settings;
+    float songOffset = 0.0f; // kA13: seconds into the song where the level starts
+    int startSpeed = 0;      // kA4: initial speed setting (0: 1x, 1: 0.7x, 2: 1.1x, 3: 1.3x, 4: 1.6x)
+    bool startMini = false;  // kA11: mini mode start (1: mini, 0: normal)
     std::vector<LevelObjectRaw> objects;
 };
 
@@ -63,6 +66,12 @@ class PakoCompression {
 public:
     static std::string inflate(const uint8_t* data, size_t size);
     static std::vector<uint8_t> base64Decode(const std::string& input);
+
+    // Extracts the k4 level string from a .gmd file; returns input unchanged if not a .gmd.
+    static std::string extractLevelString(const std::string& gmd);
+
+    // Extracts the level name (k2) from a .gmd file; empty if not found.
+    static std::string extractLevelName(const std::string& gmd);
 
     static void initCatalog();
     static const ObjectDefinition* helperFn18(int id);

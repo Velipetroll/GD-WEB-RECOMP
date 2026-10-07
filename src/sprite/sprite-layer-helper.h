@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "constants.h"
+#include "utils/constants.h"
 #include "level-data-helpers.h"
 
 struct LayeredSprite {

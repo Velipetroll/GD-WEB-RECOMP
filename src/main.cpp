@@ -10,7 +10,7 @@
 #include <string>
 
 #include "stb_image.h"
-#include "constants.h"
+#include "utils/constants.h"
 #include "boot-scene.h"
 #include "level-data-helpers.h"
 #include "render-device.h"

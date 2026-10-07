@@ -113,8 +113,10 @@ void LayeredSprite::render(float extraOffsetX, float extraOffsetY) {
 
     if (baseW <= 0.0f || baseH <= 0.0f || texID == 0) return;
 
-    float drawW = baseW * scaleX;
-    float drawH = baseH * scaleY;
+    bool flipX = (scaleX < 0.0f);
+    bool flipY = (scaleY < 0.0f);
+    float drawW = baseW * std::abs(scaleX);
+    float drawH = baseH * std::abs(scaleY);
 
     float rx = 0.0f, ry = 0.0f;
     if (offsetX != 0.0f || offsetY != 0.0f) {
@@ -131,8 +133,8 @@ void LayeredSprite::render(float extraOffsetX, float extraOffsetY) {
     }
 
     if (af) {
-        batchAtlasFrame(texID, af, x + extraOffsetX + rx, y + extraOffsetY + ry, drawW, drawH, rotation, r, g, b, a, false, false, blend);
+        batchAtlasFrame(texID, af, x + extraOffsetX + rx, y + extraOffsetY + ry, drawW, drawH, rotation, r, g, b, a, flipX, flipY, blend);
     } else {
-        drawAtlasFrame(frameName, x + extraOffsetX + rx, y + extraOffsetY + ry, drawW, drawH, rotation, r, g, b, a);
+        drawAtlasFrame(frameName, x + extraOffsetX + rx, y + extraOffsetY + ry, drawW, drawH, rotation, r, g, b, a, flipX, flipY);
     }
 }

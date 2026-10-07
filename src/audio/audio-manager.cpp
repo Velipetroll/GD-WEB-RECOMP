@@ -1,5 +1,5 @@
 #include "audio-manager.h"
-#include "asset-loader.h"
+#include "assets/asset-loader.h"
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -116,7 +116,11 @@ void AudioManager::startMusic() {
         ma_engine_start(static_cast<ma_engine*>(_engine));
     }
     ma_sound* snd = static_cast<ma_sound*>(_musicSound);
-    ma_sound_seek_to_pcm_frame(snd, 0);
+    ma_uint64 startFrame = 0;
+    if (_musicStartOffset > 0.0f && _engine) {
+        startFrame = (ma_uint64)(_musicStartOffset * (float)ma_engine_get_sample_rate(static_cast<ma_engine*>(_engine)));
+    }
+    ma_sound_seek_to_pcm_frame(snd, startFrame);
     ma_sound_set_volume(snd, _effectiveVolume());
     ma_sound_start(snd);
     _isFadingIn = false;

@@ -2,7 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <SDL2/SDL_opengl.h>
-#include "constants.h"
+#include "utils/constants.h"
 
 struct TrailPoint {
     float x = 0.0f;

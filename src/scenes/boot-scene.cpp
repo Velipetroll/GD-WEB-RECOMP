@@ -6,8 +6,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#include "level-data-helpers.h"
-#include "asset-loader.h"
+#include "level/level-data-helpers.h"
+#include "assets/asset-loader.h"
 
 // Forward declaration from font-helpers
 void defineFontFromFnt(const std::string& fontKey, const std::string& fntText);
@@ -84,7 +84,7 @@ void BootScene::preload(SDL_Window* window) {
         {"square04_001",   "assets/square04_001.png",    true},
         {"GJ_square02",    "assets/GJ_square02.png",     true},
         {"GJ_WebSheetJson","assets/GJ_WebSheet.json",    false},
-        {"level_1",        "assets/1.txt",               false}
+        {"level_1",        "assets/1.txt"    ,               false}
     };
 
     for (size_t i = 0; i < tasks.size(); ++i) {

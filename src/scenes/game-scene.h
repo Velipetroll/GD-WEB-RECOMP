@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-#include "constants.h"
+#include "utils/constants.h"
 #include "player-physics-state.h"
 #include "level-renderer.h"
 #include "player.h"
@@ -69,6 +69,8 @@ enum ButtonId {
     BTN_SETTINGS_SHOW_FPS_PREV,
     BTN_SETTINGS_SHOW_FPS_NEXT,
     BTN_SETTINGS_SHOW_FPS_BOX,
+    BTN_MENU_LEVEL_PREV,
+    BTN_MENU_LEVEL_NEXT,
     BTN_COUNT
 };
 
@@ -230,6 +232,16 @@ private:
     void _updateCameraY(float dt);
     float _quantizeDelta(float dt);
     void _resetGameplayState();
+
+    struct LevelEntry {
+        std::string name;
+        bool custom = false;
+        std::string data;
+    };
+    std::vector<LevelEntry> _levelList;
+    int _selectedLevel = 0;
+    void _discoverLevels();
+    void _selectLevel(int index);
     void _triggerEndPortal();
     void _levelComplete();
     void _showNewBest();

@@ -62,6 +62,31 @@ std::vector<uint8_t> PakoCompression::base64Decode(const std::string& input) {
     return out;
 }
 
+std::string PakoCompression::extractLevelString(const std::string& gmd) {
+    size_t start = gmd.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos || gmd.compare(start, 2, "<d") != 0) return gmd;
+
+    size_t k = gmd.find("<k>k4</k>");
+    if (k == std::string::npos) return gmd;
+    size_t s1 = gmd.find("<s>", k);
+    if (s1 == std::string::npos) return gmd;
+    s1 += 3;
+    size_t s2 = gmd.find("</s>", s1);
+    if (s2 == std::string::npos) return gmd;
+    return gmd.substr(s1, s2 - s1);
+}
+
+std::string PakoCompression::extractLevelName(const std::string& gmd) {
+    size_t k = gmd.find("<k>k2</k>");
+    if (k == std::string::npos) return "";
+    size_t s1 = gmd.find("<s>", k);
+    if (s1 == std::string::npos) return "";
+    s1 += 3;
+    size_t s2 = gmd.find("</s>", s1);
+    if (s2 == std::string::npos) return "";
+    return gmd.substr(s1, s2 - s1);
+}
+
 void PakoCompression::initCatalog() {
     if (catalogInitialized) return;
 
@@ -104,14 +129,38 @@ void PakoCompression::initCatalog() {
     ObjectDefinition d46 = {portal, "portal_06_front_001.png", 1, 3}; d46.sub = cube; options8[46] = d46;
     ObjectDefinition d47 = {portal, "portal_07_front_001.png", 1, 3}; d47.sub = fly; options8[47] = d47;
 
+    ObjectDefinition d99 = {portal, "portal_03_front_001.png", 1, 3}; d99.sub = "normal_size"; d99.portalParticle = true; d99.portalParticleColor = 5111552; options8[99] = d99;
+    ObjectDefinition d101 = {portal, "portal_04_front_001.png", 1, 3}; d101.sub = "mini"; d101.portalParticle = true; d101.portalParticleColor = 16711935; options8[101] = d101;
+
     ObjectDefinition d200 = {speed, "portal_09_front_001.png", 1, 3}; d200.sub = "slow"; options8[200] = d200;
     ObjectDefinition d201 = {speed, "portal_10_front_001.png", 1, 3}; d201.sub = "normal"; options8[201] = d201;
     ObjectDefinition d202 = {speed, "portal_08_front_001.png", 1, 3}; d202.sub = "fast"; options8[202] = d202;
     ObjectDefinition d203 = {speed, "portal_11_front_001.png", 1, 3}; d203.sub = "very_fast"; options8[203] = d203;
 
-    options8[35]  = {pad,  "bump_01_001.png", 1, 1};
-    options8[67]  = {pad,  "bump_02_001.png", 1, 1};
-    options8[140] = {pad,  "bump_03_001.png", 1, 1};
+    // Jump pads: using rod_ball_01_001.png placeholder with audioScale (reacts to music)
+    // ID 35: Yellow Pad (Medium jump / standard)
+    ObjectDefinition dPadYellow = {pad, "rod_ball_01_001.png", 1, 1};
+    dPadYellow.blend = "additive";
+    dPadYellow.tint = 16776960; // Yellow (RGB: 255, 255, 0)
+    options8[35] = dPadYellow;
+
+    // ID 140: Pink Pad (Low jump / salto bajo)
+    ObjectDefinition dPadPink = {pad, "rod_ball_01_001.png", 1, 1};
+    dPadPink.blend = "additive";
+    dPadPink.tint = 16737996; // Pink (RGB: 255, 105, 204)
+    options8[140] = dPadPink;
+
+    // ID 1332: Red Pad (High jump / salto muy alto)
+    ObjectDefinition dPadRed = {pad, "rod_ball_01_001.png", 1, 1};
+    dPadRed.blend = "additive";
+    dPadRed.tint = 16711680; // Red (RGB: 255, 0, 0)
+    options8[1332] = dPadRed;
+
+    // ID 67: Gravity Pad (Cyan / inverts gravity)
+    ObjectDefinition dPadGravity = {pad, "rod_ball_01_001.png", 1, 1};
+    dPadGravity.blend = "additive";
+    dPadGravity.tint = 65535; // Cyan (RGB: 0, 255, 255)
+    options8[67] = dPadGravity;
     options8[36]  = {ring, "ring_01_001.png", 1, 1};
     options8[84]  = {ring, "ring_02_001.png", 1, 1};
     options8[141] = {ring, "ring_03_001.png", 1, 1};
@@ -301,6 +350,19 @@ ParsedLevel PakoCompression::helperFn17(const std::string& rawLevelString) {
 
     if (std::getline(ss, line, ';')) {
         level.settings = line;
+
+        // Header is key,value pairs; kA13 = song offset in seconds, kA4 = start speed
+        std::stringstream hs(line);
+        std::string key, val;
+        while (std::getline(hs, key, ',') && std::getline(hs, val, ',')) {
+            if (key == "kA13") {
+                try { level.songOffset = std::stof(val); } catch (...) {}
+            } else if (key == "kA4") {
+                try { level.startSpeed = std::stoi(val); } catch (...) {}
+            } else if (key == "kA11") {
+                level.startMini = (val == "1");
+            }
+        }
     }
 
     while (std::getline(ss, line, ';')) {

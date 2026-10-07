@@ -12,6 +12,7 @@ public:
     void init();
 
     void startMusic();
+    void setMusicStartOffset(float seconds) { _musicStartOffset = seconds > 0.0f ? seconds : 0.0f; }
     void stopMusic();
     void pauseMusic();
     void resumeMusic();
@@ -40,6 +41,7 @@ public:
 private:
     float _effectiveVolume() const;
 
+    float _musicStartOffset = 0.0f;
     float _userMusicVol = 1.0f;
     float _sfxVolume = 1.0f;
 

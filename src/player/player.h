@@ -3,7 +3,7 @@
 #include <functional>
 #include <cmath>
 #include <SDL2/SDL_opengl.h>
-#include "constants.h"
+#include "utils/constants.h"
 #include "player-physics-state.h"
 #include "sprite-layer-helper.h"
 #include "trail-renderer.h"
@@ -103,6 +103,11 @@ public:
     void updateShipRotation(float dt);
 
     void playEndAnimation(float targetX, std::function<void()> onComplete, float targetY = 240.0f);
+    void bumpPlayer(float boostMod, int padType, bool isPlayer2 = false, const LevelObject* padObj = nullptr);
+    void propellPlayer(float boostMod, bool isPlayer2, int padType);
+    void playBumpEffect(int padType, const LevelObject* padObj);
+    void flipGravity(bool flipped);
+    void togglePlayerScale(bool toMini, bool noEffects = false, float effectX = -1.0f, float effectY = -1.0f);
 
     PlayerPhysicsState& p;
 

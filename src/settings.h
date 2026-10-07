@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <SDL2/SDL.h>
-#include "render-device.h"
+#include "render/render-device.h"
 
 struct FpsOption {
     std::string label;

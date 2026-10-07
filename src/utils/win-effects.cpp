@@ -23,7 +23,27 @@ void WinEffects::drawExpandingRing(float x, float y, float startR, float endR,
     r.filled = filled;
     r.pulse = pulse;
     r.color = color;
+    r.isWorld = false;
+    rings.push_back(r);
+}
+
+void WinEffects::drawExpandingRingWorld(float x, float y, float startR, float endR,
+                                        float durationMs, bool filled, bool pulse, unsigned int color,
+                                        float delayMs)
+{
+    ExpandingRing r;
+    r.x = x;
+    r.y = y;
+    r.startR = startR;
+    r.endR = endR;
+    r.duration = durationMs / 1000.0f;
+    r.elapsed = 0.0f;
+    r.delay = delayMs / 1000.0f;
+    r.filled = filled;
+    r.pulse = pulse;
+    r.color = color;
     r.done = false;
+    r.isWorld = true;
     rings.push_back(r);
 }
 
@@ -93,7 +113,7 @@ void WinEffects::update(float dt) {
     particles.erase(std::remove_if(particles.begin(), particles.end(), [](const WinParticle& p) { return p.done; }), particles.end());
 }
 
-void WinEffects::render() {
+void WinEffects::render(float cameraX, float cameraY) {
     if (rings.empty() && particles.empty()) return;
 
     for (const auto& r : rings) {
@@ -108,7 +128,10 @@ void WinEffects::render() {
         float green = ((r.color >> 8)  & 0xFF) / 255.0f;
         float blue  =  (r.color        & 0xFF) / 255.0f;
 
-        RenderDevice::get().drawCircle(r.x, r.y, curR, red, green, blue, alpha, r.filled, BLEND_ADD);
+        float drawX = r.isWorld ? (r.x - cameraX) : r.x;
+        float drawY = r.isWorld ? (r.y + cameraY) : r.y;
+
+        RenderDevice::get().drawCircle(drawX, drawY, curR, red, green, blue, alpha, r.filled, BLEND_ADD);
     }
 
     const AtlasFrame* sqFrame = AtlasManager::squareFrame;
@@ -144,4 +167,20 @@ void WinEffects::render() {
 void WinEffects::reset() {
     rings.clear();
     particles.clear();
+}
+
+void drawExpandingRing(float x, float y, float startR, float endR,
+                       float durationMs, bool filled,
+                       bool pulse, unsigned int color,
+                       float delayMs)
+{
+    WinEffects::drawExpandingRing(x, y, startR, endR, durationMs, filled, pulse, color, delayMs);
+}
+
+void drawExpandingRingWorld(float x, float y, float startR, float endR,
+                            float durationMs, bool filled,
+                            bool pulse, unsigned int color,
+                            float delayMs)
+{
+    WinEffects::drawExpandingRingWorld(x, y, startR, endR, durationMs, filled, pulse, color, delayMs);
 }

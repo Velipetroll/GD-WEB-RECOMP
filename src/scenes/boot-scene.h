@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
-#include "constants.h"
+#include "utils/constants.h"
 
 struct Texture {
     GLuint id = 0;

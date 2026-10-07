@@ -15,25 +15,47 @@ endif()
 
 # Source files
 set(GAME_SOURCES
-    src/audio-manager.cpp
-    src/boot-scene.cpp
-    src/color-manager.cpp
-    src/font-helpers.cpp
-    src/game-scene.cpp
-    src/game-scene-ui.cpp
-    src/level-data-helpers.cpp
-    src/level-renderer.cpp
+    src/audio/audio-manager.cpp
+    src/scenes/boot-scene.cpp
+    src/utils/color-manager.cpp
+    src/utils/font-helpers.cpp
+    src/scenes/game-scene.cpp
+    src/scenes/game-scene-ui.cpp
+    src/level/level-data-helpers.cpp
+    src/level/level-renderer.cpp
     src/main.cpp
-    src/pako-compression.cpp
-    src/player.cpp
-    src/render-d3d8.cpp
-    src/render-d3d9.cpp
-    src/render-device.cpp
-    src/render-gl1.cpp
-    src/render-webgl.cpp
-    src/sprite-layer-helper.cpp
-    src/trail-renderer.cpp
-    src/win-effects.cpp
+    src/utils/pako-compression.cpp
+    src/player/player.cpp
+    src/render/render-d3d8.cpp
+    src/render/render-d3d9.cpp
+    src/render/render-device.cpp
+    src/render/render-gl1.cpp
+    src/render/render-webgl.cpp
+    src/sprite/sprite-layer-helper.cpp
+    src/trail/trail-renderer.cpp
+    src/utils/win-effects.cpp
+)
+
+# Include directories for all subfolders under src
+set(GAME_INCLUDE_DIRS
+    src
+    src/assets
+    src/vendor
+    src/audio
+    src/scenes
+    src/utils
+    src/player
+    src/level
+    src/sprite
+    src/trail
+    src/render
+    src/game
+    src/game/scenes
+    src/game/level
+    src/game/player
+    src/game/sprite
+    src/game/trail
+    src/game/utils
 )
 
 # -----------------------------------------------------------------------------
@@ -57,7 +79,7 @@ if(EMSCRIPTEN)
     endif()
 
     string(JOIN " " EMSCRIPTEN_LINK_FLAGS_STR ${EMSCRIPTEN_LINK_FLAGS})
-    target_include_directories(GeometryDash PRIVATE src src/vendor)
+    target_include_directories(GeometryDash PRIVATE ${GAME_INCLUDE_DIRS})
     set_target_properties(GeometryDash PROPERTIES
         OUTPUT_NAME "index"
         SUFFIX ".html"
@@ -79,7 +101,7 @@ elseif(WIN32)
     find_package(SDL2 REQUIRED)
     find_package(ZLIB REQUIRED)
 
-    target_include_directories(GeometryDash PRIVATE ${SDL2_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} src src/vendor)
+    target_include_directories(GeometryDash PRIVATE ${SDL2_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS} ${GAME_INCLUDE_DIRS})
     target_link_libraries(GeometryDash PRIVATE
         ${SDL2_LIBRARIES}
         ${ZLIB_LIBRARIES}
@@ -117,8 +139,7 @@ else()
         ${SDL2_INCLUDE_DIRS}
         ${OPENGL_INCLUDE_DIR}
         ${ZLIB_INCLUDE_DIRS}
-        src
-        src/vendor
+        ${GAME_INCLUDE_DIRS}
     )
 
     target_link_libraries(GeometryDash PRIVATE

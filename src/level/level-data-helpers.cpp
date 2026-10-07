@@ -31,6 +31,10 @@ LevelObject::LevelObject(const std::string& type, float x, float y, float w, flo
     else if (type == "hazard") objType = OBJ_HAZARD;
     else if (type == portalFly) objType = OBJ_PORTAL_FLY;
     else if (type == portalCube) objType = OBJ_PORTAL_CUBE;
+    else if (type == portalMini) objType = OBJ_PORTAL_MINI;
+    else if (type == portalNormal) objType = OBJ_PORTAL_NORMAL;
+    else if (type == "pad") objType = OBJ_PAD;
+    else if (type == "speed") objType = OBJ_PORTAL_SPEED;
     else objType = OBJ_NONE;
 }
 
@@ -48,7 +52,9 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
                      bool flipX, bool flipY,
                      BlendMode blend)
 {
-    if (!frame || texID == 0 || w <= 0.0f || h <= 0.0f || a <= 0.001f) return;
+    if (!frame || texID == 0 || w == 0.0f || h == 0.0f || a <= 0.001f) return;
+    if (w < 0.0f) { flipX = !flipX; w = -w; }
+    if (h < 0.0f) { flipY = !flipY; h = -h; }
 
     float u0 = frame->u0, v0 = frame->v0;
     float u1 = frame->u1, v1 = frame->v1;

@@ -13,6 +13,7 @@ public:
     bool gravityFlipped;
     bool isFlying;
     bool wasBoosted;
+    float speedMod;
 
     float collideTop;
     float collideBottom;
@@ -21,6 +22,9 @@ public:
     bool upKeyDown;
     bool upKeyPressed;
     bool isDead;
+
+    bool isMini;
+    float vehicleSize;
 
     PlayerPhysicsState() {
         reset();
@@ -38,6 +42,7 @@ public:
         gravityFlipped = false;
         isFlying = false;
         wasBoosted = false;
+        speedMod = 1.0f;
 
         collideTop = 0.0f;
         collideBottom = 0.0f;
@@ -46,5 +51,8 @@ public:
         upKeyDown = false;
         upKeyPressed = false;
         isDead = false;
+
+        isMini = false;
+        vehicleSize = 1.0f;
     }
 };

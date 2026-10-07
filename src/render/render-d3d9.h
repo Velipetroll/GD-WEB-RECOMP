@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <SDL2/SDL.h>
-#include "constants.h"
+#include "utils/constants.h"
 
 struct D3DVertex;
 struct PreparedTexture;
