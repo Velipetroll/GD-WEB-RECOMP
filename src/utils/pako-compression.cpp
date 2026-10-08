@@ -137,33 +137,62 @@ void PakoCompression::initCatalog() {
     ObjectDefinition d202 = {speed, "portal_08_front_001.png", 1, 3}; d202.sub = "fast"; options8[202] = d202;
     ObjectDefinition d203 = {speed, "portal_11_front_001.png", 1, 3}; d203.sub = "very_fast"; options8[203] = d203;
 
-    // Jump pads: using rod_ball_01_001.png placeholder with audioScale (reacts to music)
+    // Jump pads: using authentic bump textures from GJ_GameSheet
     // ID 35: Yellow Pad (Medium jump / standard)
-    ObjectDefinition dPadYellow = {pad, "rod_ball_01_001.png", 1, 1};
+    ObjectDefinition dPadYellow = {pad, "bump_01_001.png", 1, 1};
+    dPadYellow.glow = true;
     dPadYellow.blend = "additive";
     dPadYellow.tint = 16776960; // Yellow (RGB: 255, 255, 0)
     options8[35] = dPadYellow;
+    // glow enabled below
 
     // ID 140: Pink Pad (Low jump / salto bajo)
-    ObjectDefinition dPadPink = {pad, "rod_ball_01_001.png", 1, 1};
+    ObjectDefinition dPadPink = {pad, "bump_03_001.png", 1, 1};
+    dPadPink.glow = true;
     dPadPink.blend = "additive";
     dPadPink.tint = 16737996; // Pink (RGB: 255, 105, 204)
     options8[140] = dPadPink;
+    // glow enabled below
 
     // ID 1332: Red Pad (High jump / salto muy alto)
-    ObjectDefinition dPadRed = {pad, "rod_ball_01_001.png", 1, 1};
+    ObjectDefinition dPadRed = {pad, "bump_01_001.png", 1, 1};
+    dPadRed.glow = true;
     dPadRed.blend = "additive";
     dPadRed.tint = 16711680; // Red (RGB: 255, 0, 0)
     options8[1332] = dPadRed;
+    // glow enabled below
 
     // ID 67: Gravity Pad (Cyan / inverts gravity)
-    ObjectDefinition dPadGravity = {pad, "rod_ball_01_001.png", 1, 1};
+    ObjectDefinition dPadGravity = {pad, "gravbump_01_001.png", 1, 1};
+    dPadGravity.glow = true;
     dPadGravity.blend = "additive";
     dPadGravity.tint = 65535; // Cyan (RGB: 0, 255, 255)
     options8[67] = dPadGravity;
-    options8[36]  = {ring, "ring_01_001.png", 1, 1};
-    options8[84]  = {ring, "ring_02_001.png", 1, 1};
-    options8[141] = {ring, "ring_03_001.png", 1, 1};
+    // glow enabled below
+
+    // Jump rings / Orbes (reacting to music / audioScale)
+    ObjectDefinition dRingYellow = {ring, "ring_01_001.png", 1, 1};
+    dRingYellow.glow = true;
+    dRingYellow.blend = "additive";
+    dRingYellow.tint = 16776960; // Yellow (RGB: 255, 255, 0)
+    options8[36]  = dRingYellow;
+    // glow enabled below
+
+    // ID 84: Gravity Jump Ring (Cyan)
+    ObjectDefinition dRingGravity = {ring, "gravring_01_001.png", 1, 1};
+    dRingGravity.glow = true;
+    dRingGravity.blend = "additive";
+    dRingGravity.tint = 65535; // Cyan (RGB: 0, 255, 255)
+    options8[84]  = dRingGravity;
+    // glow enabled below
+
+    // ID 141: Pink Jump Ring
+    ObjectDefinition dRingPink = {ring, "ring_03_001.png", 1, 1};
+    dRingPink.glow = true;
+    dRingPink.blend = "additive";
+    dRingPink.tint = 16737996; // Pink (RGB: 255, 105, 204)
+    options8[141] = dRingPink;
+    // glow enabled below
 
     options8[62]  = {solid2, "square_b_01_001.png", 1, 1};
     options8[63]  = {solid2, "square_b_02_001.png", 1, 1};
@@ -215,12 +244,12 @@ void PakoCompression::initCatalog() {
 
     ObjectDefinition d16 = {$i, "rod_02_001.png", 0, 0};
     d16.z = -6;
-    d16.children.push_back({"rod_ball_01_001.png", 0.0f, -46.5f, "additive", colorGreenTint, 1, true});
+    d16.children.push_back({"rod_ball_02_001.png", 0.0f, -46.5f, "additive", colorGreenTint, 1, true});
     options8[16] = d16;
 
     ObjectDefinition d17 = {$i, "rod_03_001.png", 0, 0};
     d17.z = -6;
-    d17.children.push_back({"rod_ball_01_001.png", 0.0f, -32.5f, "additive", colorGreenTint, 1, true});
+    d17.children.push_back({"rod_ball_03_001.png", 0.0f, -32.5f, "additive", colorGreenTint, 1, true});
     options8[17] = d17;
 
     options8[132] = {$i, "d_arrow_01_001.png", 0, 0};

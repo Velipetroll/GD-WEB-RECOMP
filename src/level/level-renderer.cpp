@@ -10,54 +10,10 @@ static void getPortalOffset(const std::string& frameName, float& outDx, float& o
     outDx = 0.0f;
     outDy = 0.0f;
 
-    if (BootScene::textCache.find("GJ_WebSheetJson") != BootScene::textCache.end()) {
-        const std::string& json = BootScene::textCache["GJ_WebSheetJson"];
-        size_t fnPos = json.find("\"" + frameName + "\"");
-        if (fnPos == std::string::npos && frameName.size() > 4) {
-            fnPos = json.find("\"" + frameName.substr(0, frameName.size() - 4) + "\"");
-        }
-        if (fnPos != std::string::npos) {
-            size_t nextPos = json.find(".png\"", fnPos + frameName.size() + 2);
-            size_t chunkLen = (nextPos != std::string::npos) ? (nextPos - fnPos) : 1000;
-            std::string chunk = json.substr(fnPos, chunkLen);
-
-            auto getChunkVal = [&](const std::string& key, size_t start = 0) -> float {
-                size_t k = chunk.find("\"" + key + "\"", start);
-                if (k == std::string::npos) return 0.0f;
-                size_t colon = chunk.find(":", k);
-                if (colon == std::string::npos) return 0.0f;
-                try { return std::stof(chunk.substr(colon + 1)); } catch (...) { return 0.0f; }
-            };
-
-            size_t gjPos = chunk.find("\"gjSpriteOffset\"");
-            if (gjPos != std::string::npos) {
-                outDx = getChunkVal("x", gjPos);
-                outDy = -getChunkVal("y", gjPos);
-            } else {
-                size_t sssPos = chunk.find("\"spriteSourceSize\"");
-                size_t ssPos  = chunk.find("\"sourceSize\"");
-                size_t fPos   = chunk.find("\"frame\"");
-
-                if (sssPos != std::string::npos && ssPos != std::string::npos && fPos != std::string::npos) {
-                    float sssX   = getChunkVal("x", sssPos);
-                    float sssY   = getChunkVal("y", sssPos);
-                    float srcW   = getChunkVal("w", ssPos);
-                    float srcH   = getChunkVal("h", ssPos);
-                    float frameW = getChunkVal("w", fPos);
-                    float frameH = getChunkVal("h", fPos);
-
-                    if (srcW > 0.0f && srcH > 0.0f) {
-                        outDx = (sssX + frameW * 0.5f) - (srcW * 0.5f);
-                        outDy = (sssY + frameH * 0.5f) - (srcH * 0.5f);
-                    }
-                }
-            }
-        }
-    }
-
-    if (AtlasManager::atlasScale > 0.0f) {
-        outDx /= AtlasManager::atlasScale;
-        outDy /= AtlasManager::atlasScale;
+    const AtlasFrame* af = findAtlasFrame(frameName);
+    if (af) {
+        outDx = af->offsetX;
+        outDy = af->offsetY;
     }
 
     if (outDx == 0.0f && outDy == 0.0f) {
@@ -104,7 +60,7 @@ LevelRenderer::~LevelRenderer() {}
 
 void LevelRenderer::_buildGround() {
     const AtlasFrame* frame = findAtlasFrame("groundSquare_01_001.png");
-    _tileW = frame ? frame->w : 1012.0f;
+    _tileW = 270.0f; // intermediate width between squashed (180) and stretched (360)
 
     int tileCount = (int)std::ceil((float)screenWidth / _tileW) + 2;
     float startX = -groundYOffset;
@@ -291,12 +247,16 @@ void LevelRenderer::_addGlowSprite(float x, float y, const std::string& frame, c
     getPortalOffset(glowName, gdx, gdy);
     applyTransformOffset(gdx, gdy, raw.scale, raw.flipX, raw.flipY, raw.rot);
 
-    GLuint webSheetId = (BootScene::textures.find("GJ_WebSheet") != BootScene::textures.end()) ? BootScene::textures["GJ_WebSheet"].id : 0;
+    GLuint texID = (af && af->textureId != 0) ? af->textureId : _webSheetId;
+    if (texID == 0 && af && !af->atlas.empty()) {
+        auto itA = BootScene::textures.find(af->atlas);
+        if (itA != BootScene::textures.end()) texID = itA->second.id;
+    }
 
     VisualSprite s;
     s.frame = glowName;
     s.framePtr = af;
-    s.textureID = webSheetId;
+    s.textureID = texID;
     s.x = x + gdx;
     s.y = y + gdy;
     s.w = af ? af->w : 60.0f;
@@ -316,6 +276,10 @@ void LevelRenderer::_addGlowSprite(float x, float y, const std::string& frame, c
     s.b = 1.0f;
     s.a = 0.75f;
     s.baseAlpha = 0.75f;
+
+    if (frame.find("ring_") == 0 || frame.find("gravring_") == 0) {
+        s.audioScale = true;
+    }
 
     _addToSection(s);
 }
@@ -387,10 +351,16 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
                 applyTransformOffset(bdx, bdy, item.scale, item.flipX, item.flipY, item.rot);
 
                 const AtlasFrame* afBack = findAtlasFrame(backFrame);
+                GLuint backTexID = (afBack && afBack->textureId != 0) ? afBack->textureId : webSheetId;
+                if (backTexID == 0 && afBack && !afBack->atlas.empty()) {
+                    auto itA = BootScene::textures.find(afBack->atlas);
+                    if (itA != BootScene::textures.end()) backTexID = itA->second.id;
+                }
+
                 VisualSprite backSprite;
                 backSprite.frame = backFrame;
                 backSprite.framePtr = afBack;
-                backSprite.textureID = webSheetId;
+                backSprite.textureID = backTexID;
                 backSprite.x = drawX + bdx;
                 backSprite.y = drawY + bdy;
                 backSprite.w = (afBack ? afBack->w : 60.0f) * item.scale;
@@ -416,10 +386,16 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
             applyTransformOffset(fdx, fdy, item.scale, item.flipX, item.flipY, item.rot);
 
             const AtlasFrame* afMain = findAtlasFrame(frameName);
+            GLuint mainTexID = (afMain && afMain->textureId != 0) ? afMain->textureId : webSheetId;
+            if (mainTexID == 0 && afMain && !afMain->atlas.empty()) {
+                auto itA = BootScene::textures.find(afMain->atlas);
+                if (itA != BootScene::textures.end()) mainTexID = itA->second.id;
+            }
+
             VisualSprite mainSprite;
             mainSprite.frame = frameName;
             mainSprite.framePtr = afMain;
-            mainSprite.textureID = webSheetId;
+            mainSprite.textureID = mainTexID;
             mainSprite.x = drawX + fdx;
             mainSprite.y = drawY + fdy;
             mainSprite.w = (afMain ? afMain->w : (def->gridW > 0 ? def->gridW * baseUnit : 60.0f)) * item.scale;
@@ -449,19 +425,31 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
                 mainSprite.b =  (def->tint        & 0xFF) / 255.0f;
             }
 
-            if (def->type == "pad") {
-                mainSprite.audioScale = true;
-                mainSprite.w = 54.0f * item.scale;
-                mainSprite.h = 24.0f * item.scale;
-                bool isUpsideDown = (item.rot == 180.0f || item.flipY);
-                if (isUpsideDown) {
-                    // Ceiling pad (pointing down): base at drawY + 4.0f, extends downwards
-                    mainSprite.y = (drawY + 4.0f) - mainSprite.h * 0.5f + fdy;
-                } else {
-                    // Ground/block pad (pointing up): base at drawY - 4.0f, extends upwards
-                    mainSprite.y = (drawY - 4.0f) + mainSprite.h * 0.5f + fdy;
-                }
+            if (def->type == "ground") {
+                // Ground tile uses its real 180x180 size
+                mainSprite.w = (afMain ? afMain->w : 180.0f) * item.scale;
+                mainSprite.h = (afMain ? afMain->h : 180.0f) * item.scale;
+            } else if (def->type == "pad") {
+                mainSprite.blend = BLEND_NORMAL;
+                mainSprite.layer = 1;
+                if (item.id == 35 || item.id == 140) { mainSprite.r = mainSprite.g = mainSprite.b = 1.0f; }
+                // Pad no longer scales with music rhythm
+                // mainSprite.audioScale = true;
+                // Use base bump texture for pad (filled color)
+                // The glow sprite will be added later by the existing def->glow block.
+                mainSprite.w = (afMain ? afMain->w : 180.0f) * item.scale;
+                mainSprite.h = (afMain ? afMain->h : 180.0f) * item.scale;
+                // Pads keep the default Y position (drawY + fdy) – no extra offset needed
+                // mainSprite.y is already set earlier; we just keep it as is.
+                // mainSprite.baseY will be set after this block
                 mainSprite.baseY = mainSprite.y;
+            } else if (def->type == "ring") {
+                mainSprite.audioScale = true;
+                mainSprite.w = (afMain ? afMain->w : (def->gridW > 0 ? def->gridW * baseUnit : 54.0f)) * item.scale;
+                mainSprite.h = (afMain ? afMain->h : (def->gridH > 0 ? def->gridH * baseUnit : 24.0f)) * item.scale;
+                mainSprite.baseY = mainSprite.y;
+            } else if (def->type == "ring") {
+                mainSprite.audioScale = true;
             }
 
             _addToSection(mainSprite);
@@ -526,14 +514,21 @@ void LevelRenderer::_spawnLevelObjects(const std::vector<LevelObjectRaw>& rawObj
                 applyTransformOffset(cdx, cdy, item.scale, item.flipX, item.flipY, item.rot);
 
                 const AtlasFrame* afChild = findAtlasFrame(ch.frame);
+                GLuint childTexID = (afChild && afChild->textureId != 0) ? afChild->textureId : webSheetId;
+                if (childTexID == 0 && afChild && !afChild->atlas.empty()) {
+                    auto itA = BootScene::textures.find(afChild->atlas);
+                    if (itA != BootScene::textures.end()) childTexID = itA->second.id;
+                }
+
                 VisualSprite childSprite;
                 childSprite.frame = ch.frame;
                 childSprite.framePtr = afChild;
-                childSprite.textureID = webSheetId;
+                childSprite.textureID = childTexID;
                 childSprite.x = drawX + offX + cdx;
                 childSprite.y = drawY + offY + cdy;
                 childSprite.w = (afChild ? afChild->w : 60.0f) * item.scale;
                 childSprite.h = (afChild ? afChild->h : 60.0f) * item.scale;
+                if (ch.frame.rfind("rod_ball", 0) == 0) { childSprite.w *= 0.5f; childSprite.h *= 0.5f; }
                 childSprite.baseX = childSprite.x;
                 childSprite.baseY = childSprite.y;
                 childSprite.worldX = objX + offX + cdx;
@@ -840,8 +835,8 @@ void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
             float dh = s.h * s.scaleY;
 
             if (s.audioScale) {
-                dw *= _currentAudioScale;
-                dh *= _currentAudioScale;
+                dw *= (0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f));
+                dh *= (0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f));
             }
 
             if (spriteOutsideY(s.y, dw, dh, cameraY)) continue;
@@ -857,12 +852,12 @@ void LevelRenderer::renderLayer0(float cameraX, float cameraY) {
 
     if (endXPos > 0.0f && endXPos >= cameraX - 200.0f && endXPos <= cameraX + (float)screenWidth + 500.0f) {
         float pY = flipY(_endPortalGameY);
-        uint32_t webSheetId = _webSheetId;
         const AtlasFrame* gradAf = _gradAf ? _gradAf : findAtlasFrame("gradientBar.png");
         float gw = gradAf ? gradAf->w : 64.0f;
         float shineX = endXPos - 58.0f;
-        if (gradAf && webSheetId) {
-            batchAtlasFrame(webSheetId, gradAf, shineX, pY, gw, 960.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.85f, false, false, BLEND_ADD);
+        uint32_t gradTexId = (gradAf && gradAf->textureId != 0) ? gradAf->textureId : _webSheetId;
+        if (gradAf && gradTexId != 0) {
+            batchAtlasFrame(gradTexId, gradAf, shineX, pY, gw, 960.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.85f, false, false, BLEND_ADD);
         }
     }
 }
@@ -882,14 +877,14 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
             float dh = s.h * s.scaleY;
 
             if (s.audioScale) {
-                dw *= _currentAudioScale;
-                dh *= _currentAudioScale;
+                dw *= (0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f));
+                dh *= (0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f));
             }
 
             if (spriteOutsideY(s.y, dw, dh, cameraY)) continue;
 
             if (s.framePtr) {
-                batchAtlasFrame(s.textureID, s.framePtr, s.x, s.y,
+                batchAtlasFrame(s.textureID, s.framePtr, s.x + s.offX * (s.audioScale ? 0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f) : 1.0f), s.y + s.offY * (s.audioScale ? 0.75f + 0.5f * std::clamp(_currentAudioScale, 0.0f, 1.0f) : 1.0f),
                                 dw, dh, s.rotation, s.r, s.g, s.b, s.a, s.flipX, s.flipY, s.blend);
             } else {
                 drawAtlasFrame(s.frame, s.x, s.y, dw, dh, s.rotation, s.r, s.g, s.b, s.a, s.flipX, s.flipY);
@@ -906,7 +901,9 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
         const AtlasFrame* frontSqAf = _frontSqAf;
         const AtlasFrame* fillSqAf = _fillSqAf;
         const AtlasFrame* sqAf = _sqAf ? _sqAf : findAtlasFrame("square.png");
-        uint32_t webSheetId = _webSheetId;
+        uint32_t sqTexId = (sqAf && sqAf->textureId != 0) ? sqAf->textureId : _webSheetId;
+        uint32_t frontTexId = (frontSqAf && frontSqAf->textureId != 0) ? frontSqAf->textureId : _webSheetId;
+        uint32_t fillTexId = (fillSqAf && fillSqAf->textureId != 0) ? fillSqAf->textureId : _webSheetId;
         float fillRot = (fillSqAf && fillSqAf->name.find("square_02") != std::string::npos) ? -90.0f : 0.0f;
 
         for (int col = 0; col < cols; ++col) {
@@ -923,14 +920,14 @@ void LevelRenderer::renderLayer1(float cameraX, float cameraY) {
                 if (syBlock < -48.0f || syBlock > (float)screenHeight + 48.0f) continue;
 
                 // Solid base with the level color (ground color)
-                if (sqAf && webSheetId) {
-                    batchAtlasFrame(webSheetId, sqAf, bx, by, blockW, blockH, 0.0f, _groundR, _groundG, _groundB, 1.0f);
+                if (sqAf && sqTexId != 0) {
+                    batchAtlasFrame(sqTexId, sqAf, bx, by, blockW, blockH, 0.0f, _groundR, _groundG, _groundB, 1.0f);
                 }
 
-                if (isFront && frontSqAf) {
-                    batchAtlasFrame(webSheetId, frontSqAf, bx, by, blockW, blockH, -90.0f, 1.0f, 1.0f, 1.0f, 1.0f);
-                } else if (fillSqAf) {
-                    batchAtlasFrame(webSheetId, fillSqAf, bx, by, blockW, blockH, fillRot, 1.0f, 1.0f, 1.0f, 1.0f);
+                if (isFront && frontSqAf && frontTexId != 0) {
+                    batchAtlasFrame(frontTexId, frontSqAf, bx, by, blockW, blockH, -90.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+                } else if (fillSqAf && fillTexId != 0) {
+                    batchAtlasFrame(fillTexId, fillSqAf, bx, by, blockW, blockH, fillRot, 1.0f, 1.0f, 1.0f, 1.0f);
                 }
             }
         }
@@ -1025,7 +1022,7 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
             float dh = s.h;
             if (s.audioScale) {
                 float pulse = std::clamp(_currentAudioScale, 0.0f, 1.0f);
-                float curScale = 0.20f + pulse * 1.0f;
+                float curScale = 0.75f + pulse * 0.5f;
                 dw = s.w * curScale;
                 dh = s.h * curScale;
             }
@@ -1042,7 +1039,7 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
     }
 
     const AtlasFrame* sqAf = _sqAf ? _sqAf : findAtlasFrame("square.png");
-    uint32_t webSheetId = _webSheetId;
+    uint32_t sqTexId = (sqAf && sqAf->textureId != 0) ? sqAf->textureId : _webSheetId;
 
     for (const auto& pe : _inLevelPortalEmitters) {
         if (pe.x >= cameraX - 100.0f && pe.x <= cameraX + (float)screenWidth + 100.0f) {
@@ -1060,8 +1057,8 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
                 float sc = 0.75f + (0.125f - 0.75f) * pt;
                 float alpha = 0.5f * (1.0f - pt);
 
-                if (sqAf && webSheetId) {
-                    batchAtlasFrame(webSheetId, sqAf, px, py, 20.0f * sc, 20.0f * sc, 0.0f, r, g, b, alpha, false, false, BLEND_ADD);
+                if (sqAf && sqTexId != 0) {
+                    batchAtlasFrame(sqTexId, sqAf, px, py, 20.0f * sc, 20.0f * sc, 0.0f, r, g, b, alpha, false, false, BLEND_ADD);
                 }
             }
         }
@@ -1080,8 +1077,8 @@ void LevelRenderer::renderLayer2(float cameraX, float cameraY) {
             float px = emitterX + vp.rx;
             float py = emitterY + vp.ry;
 
-            if (sqAf && webSheetId) {
-                batchAtlasFrame(webSheetId, sqAf, px, py, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
+            if (sqAf && sqTexId != 0) {
+                batchAtlasFrame(sqTexId, sqAf, px, py, size, size, 0.0f, 0.0f, 1.0f, 0.0f, alpha, false, false, BLEND_ADD);
             }
         }
     }
@@ -1118,41 +1115,47 @@ void LevelRenderer::renderGround(float cameraX, float cameraY) {
     const AtlasFrame* gndAf = _gndAf ? _gndAf : findAtlasFrame("groundSquare_01_001.png");
     const AtlasFrame* floorAf = _floorLineAf ? _floorLineAf : findAtlasFrame("floorLine_01_001.png");
     const AtlasFrame* shadowAf = _shadowAf ? _shadowAf : findAtlasFrame("groundSquareShadow_001.png");
-    uint32_t webSheetId = _webSheetId;
+    uint32_t gndTexId = (gndAf && gndAf->textureId != 0) ? gndAf->textureId : _webSheetId;
+    if (gndTexId == 0) {
+        auto itG = BootScene::textures.find("groundSquare_01_001");
+        if (itG != BootScene::textures.end()) gndTexId = itG->second.id;
+    }
+    uint32_t floorTexId = (floorAf && floorAf->textureId != 0) ? floorAf->textureId : _webSheetId;
+    uint32_t shadowTexId = (shadowAf && shadowAf->textureId != 0) ? shadowAf->textureId : _webSheetId;
 
-    if (gndAf && webSheetId) {
+    if (gndAf && gndTexId != 0) {
         for (int t = startTile; t <= endTile; ++t) {
             float worldX = t * _tileW;
             float screenX = worldX - cameraX;
-            batchAtlasFrame(webSheetId, gndAf, screenX + _tileW * 0.5f, groundSurfaceY + 90.0f, _tileW, 180.0f, 0.0f, _groundR, _groundG, _groundB, 1.0f);
+            batchAtlasFrame(gndTexId, gndAf, screenX + _tileW * 0.5f, groundSurfaceY + 90.0f, _tileW, 180.0f, 0.0f, _groundR, _groundG, _groundB, 1.0f);
         }
     }
 
-    if (shadowAf && webSheetId) {
-        batchAtlasFrame(webSheetId, shadowAf, 42.0f, groundSurfaceY + 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, false, false, BLEND_NORMAL);
-        batchAtlasFrame(webSheetId, shadowAf, screenWidth - 42.0f, groundSurfaceY + 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, true, false, BLEND_NORMAL);
+    if (shadowAf && shadowTexId != 0) {
+        batchAtlasFrame(shadowTexId, shadowAf, 42.0f, groundSurfaceY + 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, false, false, BLEND_NORMAL);
+        batchAtlasFrame(shadowTexId, shadowAf, screenWidth - 42.0f, groundSurfaceY + 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, true, false, BLEND_NORMAL);
     }
 
-    if (floorAf && webSheetId) {
-        batchAtlasFrame(webSheetId, floorAf, screenWidth * 0.5f, groundSurfaceY + 1.5f, (float)screenWidth - 168.0f, 3.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.8f, false, false, BLEND_ADD);
+    if (floorAf && floorTexId != 0) {
+        batchAtlasFrame(floorTexId, floorAf, screenWidth * 0.5f, groundSurfaceY + 1.5f, (float)screenWidth - 168.0f, 3.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.8f, false, false, BLEND_ADD);
     }
 
     if (_flyGroundActive && _groundTargetValue > 0.001f) {
-        if (gndAf && webSheetId) {
+        if (gndAf && gndTexId != 0) {
             for (int t = startTile; t <= endTile; ++t) {
                 float worldX = t * _tileW;
                 float screenX = worldX - cameraX;
-                batchAtlasFrame(webSheetId, gndAf, screenX + _tileW * 0.5f, ceilingSurfaceY - 90.0f, _tileW, 180.0f, 0.0f, _groundR, _groundG, _groundB, 1.0f, false, true);
+                batchAtlasFrame(gndTexId, gndAf, screenX + _tileW * 0.5f, ceilingSurfaceY - 90.0f, _tileW, 180.0f, 0.0f, _groundR, _groundG, _groundB, 1.0f, false, true);
             }
         }
 
-        if (shadowAf && webSheetId) {
-            batchAtlasFrame(webSheetId, shadowAf, 42.0f, ceilingSurfaceY - 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, false, true, BLEND_NORMAL);
-            batchAtlasFrame(webSheetId, shadowAf, screenWidth - 42.0f, ceilingSurfaceY - 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, true, true, BLEND_NORMAL);
+        if (shadowAf && shadowTexId != 0) {
+            batchAtlasFrame(shadowTexId, shadowAf, 42.0f, ceilingSurfaceY - 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, false, true, BLEND_NORMAL);
+            batchAtlasFrame(shadowTexId, shadowAf, screenWidth - 42.0f, ceilingSurfaceY - 90.0f, 84.0f, 180.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.39f, true, true, BLEND_NORMAL);
         }
 
-        if (floorAf && webSheetId) {
-            batchAtlasFrame(webSheetId, floorAf, screenWidth * 0.5f, ceilingSurfaceY - 1.5f, (float)screenWidth - 168.0f, 3.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.8f, false, true, BLEND_ADD);
+        if (floorAf && floorTexId != 0) {
+            batchAtlasFrame(floorTexId, floorAf, screenWidth * 0.5f, ceilingSurfaceY - 1.5f, (float)screenWidth - 168.0f, 3.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.8f, false, true, BLEND_ADD);
         }
     }
 }

@@ -28,6 +28,7 @@ struct VisualSprite {
     bool eeActive = false;
     int layer = 1;
     float baseX = 0.0f, baseY = 0.0f;
+    float offX = 0.0f, offY = 0.0f;
     float worldX = 0.0f;
     float baseAlpha = 1.0f;
     std::string frame;

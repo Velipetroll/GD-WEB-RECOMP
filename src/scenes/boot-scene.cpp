@@ -74,17 +74,31 @@ void BootScene::preload(SDL_Window* window) {
     };
 
     std::vector<AssetTask> tasks = {
-        {"GJ_WebSheet",    "assets/GJ_WebSheet.png",     true},
-        {"bigFont",        "assets/bigFont.png",         true},
-        {"bigFontFnt",     "assets/bigFont.fnt",         false},
-        {"goldFont",       "assets/goldFont.png",        true},
-        {"goldFontFnt",    "assets/goldFont.fnt",        false},
-        {"game_bg_01",     "assets/game_bg_01_001.png",  true},
-        {"sliderBar",      "assets/sliderBar.png",       true},
-        {"square04_001",   "assets/square04_001.png",    true},
-        {"GJ_square02",    "assets/GJ_square02.png",     true},
-        {"GJ_WebSheetJson","assets/GJ_WebSheet.json",    false},
-        {"level_1",        "assets/1.txt"    ,               false}
+        {"GJ_GameSheet",       "assets/Resources/GJ_GameSheet-hd.png",        true},
+        {"GJ_GameSheetPlist",  "assets/Resources/GJ_GameSheet-hd.plist",      false},
+        {"GJ_GameSheet02",     "assets/Resources/GJ_GameSheet02-hd.png",      true},
+        {"GJ_GameSheet02Plist","assets/Resources/GJ_GameSheet02-hd.plist",    false},
+        {"GJ_GameSheet03",     "assets/Resources/GJ_GameSheet03-hd.png",      true},
+        {"GJ_GameSheet03Plist","assets/Resources/GJ_GameSheet03-hd.plist",    false},
+        {"GJ_GameSheetGlow",   "assets/Resources/GJ_GameSheetGlow-hd.png",    true},
+        {"GJ_GameSheetGlowPlist","assets/Resources/GJ_GameSheetGlow-hd.plist",false},
+        {"GJ_LaunchSheet",     "assets/Resources/GJ_LaunchSheet-hd.png",      true},
+        {"GJ_LaunchSheetPlist","assets/Resources/GJ_LaunchSheet-hd.plist",    false},
+        {"bigFont",            "assets/bigFont.png",                          true},
+        {"bigFontFnt",         "assets/bigFont.fnt",                          false},
+        {"goldFont",           "assets/goldFont.png",                         true},
+        {"goldFontFnt",        "assets/goldFont.fnt",                         false},
+        {"game_bg_01",         "assets/game_bg_01_001.png",                   true},
+        {"sliderBar",          "assets/Resources/sliderBar.png",              true},
+        {"slidergroove",       "assets/Resources/slidergroove.png",           true},
+        {"sliderthumb",        "assets/Resources/sliderthumb.png",            true},
+        {"sliderthumbsel",     "assets/Resources/sliderthumbsel.png",         true},
+        {"GJ_progressBar_001", "assets/Resources/GJ_progressBar_001.png",     true},
+        {"groundSquare_01_001","assets/Resources/groundSquare_01_001-hd.png",  true},
+        {"square",             "assets/Resources/square.png",                 true},
+        {"square04_001",       "assets/Resources/square04_001.png",           true},
+        {"GJ_square02",        "assets/Resources/GJ_square02.png",            true},
+        {"level_1",            "assets/1.txt",                                false}
     };
 
     for (size_t i = 0; i < tasks.size(); ++i) {
@@ -92,6 +106,10 @@ void BootScene::preload(SDL_Window* window) {
             Texture tex = loadTexture(tasks[i].key, tasks[i].path);
             textures[tasks[i].key] = tex;
             textures[tasks[i].key + ".png"] = tex;
+            if (tasks[i].key == "groundSquare_01_001") {
+                textures["groundSquare_01_001-hd"] = tex;
+                textures["groundSquare_01_001-hd.png"] = tex;
+            }
             if (tasks[i].key == "game_bg_01") {
                 textures["game_bg_01_001"] = tex;
                 textures["game_bg_01_001.png"] = tex;
@@ -113,5 +131,56 @@ void BootScene::create() {
         defineFontFromFnt("goldFont", textCache["goldFontFnt"]);
     }
 
-    std::cout << "[BootScene] Preload completed successfully (" << textures.size() << " texture entries registered)." << std::endl;
+    // Load sprite sheets from Cocos2d plist files
+    struct SheetPair {
+        std::string plistKey;
+        std::string texKey;
+    };
+    std::vector<SheetPair> sheets = {
+        {"GJ_GameSheetPlist",     "GJ_GameSheet"},
+        {"GJ_GameSheet02Plist",   "GJ_GameSheet02"},
+        {"GJ_GameSheet03Plist",   "GJ_GameSheet03"},
+        {"GJ_GameSheetGlowPlist", "GJ_GameSheetGlow"},
+        {"GJ_LaunchSheetPlist",   "GJ_LaunchSheet"}
+    };
+
+    for (const auto& s : sheets) {
+        auto itP = textCache.find(s.plistKey);
+        if (itP != textCache.end() && !itP->second.empty()) {
+            int tw = 0, th = 0;
+            auto itT = textures.find(s.texKey);
+            if (itT != textures.end()) {
+                tw = itT->second.width;
+                th = itT->second.height;
+            }
+            AtlasManager::loadAtlasPlist(itP->second, s.texKey, tw, th);
+        }
+    }
+
+    // Register synthetic AtlasFrame for standalone ground texture
+    auto itG = textures.find("groundSquare_01_001");
+    if (itG != textures.end() && itG->second.id != 0) {
+        AtlasFrame gndAf;
+        gndAf.name = "groundSquare_01_001.png";
+        gndAf.atlas = "groundSquare_01_001";
+        gndAf.textureId = itG->second.id;
+        gndAf.w = 180.0f;
+        gndAf.h = 180.0f;
+        gndAf.x = 0.0f;
+        gndAf.y = 0.0f;
+        gndAf.offsetX = 0.0f;
+        gndAf.offsetY = 0.0f;
+        gndAf.rotated = false;
+        gndAf.u0 = 0.0f;
+        gndAf.v0 = 0.0f;
+        gndAf.u1 = 1.0f;
+        gndAf.v1 = 1.0f;
+        AtlasManager::frames["groundSquare_01_001"] = gndAf;
+        AtlasManager::frames["groundSquare_01_001.png"] = gndAf;
+        AtlasManager::frames["groundSquare_01_001-hd"] = gndAf;
+        AtlasManager::frames["groundSquare_01_001-hd.png"] = gndAf;
+    }
+
+    std::cout << "[BootScene] Preload completed successfully (" << textures.size() << " texture entries registered, "
+              << AtlasManager::frames.size() << " atlas frames loaded from plists)." << std::endl;
 }

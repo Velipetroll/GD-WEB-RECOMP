@@ -12,7 +12,7 @@ struct LayeredSprite;
 
 struct AtlasFrame {
     std::string name;
-    std::string atlas = "GJ_WebSheet";
+    std::string atlas = "";
     float x = 0.0f;
     float y = 0.0f;
     float w = 0.0f;
@@ -21,6 +21,12 @@ struct AtlasFrame {
     float v0 = 0.0f;
     float u1 = 0.0f;
     float v1 = 0.0f;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float sourceW = 0.0f;
+    float sourceH = 0.0f;
+    bool rotated = false;
+    uint32_t textureId = 0;
 };
 
 enum ObjectType : uint8_t {
@@ -83,6 +89,7 @@ public:
     static std::unordered_map<std::string, AtlasFrame> frames;
     static const AtlasFrame* squareFrame;
     static float atlasScale;
+    static void loadAtlasPlist(const std::string& plistContent, const std::string& textureKey, int texW, int texH);
     static void loadAtlasJson(const std::string& jsonContent, int texW, int texH);
     static const AtlasFrame* findAtlasFrame(const std::string& frameName);
 };

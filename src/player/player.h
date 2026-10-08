@@ -20,6 +20,7 @@ struct ShardQuad {
     float vx0 = 0.0f, vy0 = 0.0f, vx1 = 0.0f, vy1 = 0.0f;
     float u0 = 0.0f, v0 = 0.0f, u1 = 0.0f, v1 = 0.0f;
     float r = 1.0f, g = 1.0f, b = 1.0f;
+    uint32_t textureID = 0;
 };
 
 struct ExplosionPiece {

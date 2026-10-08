@@ -447,8 +447,16 @@ void GameScene::_renderSlider(float centerX, float centerY, float progress, bool
         } else {
             const AtlasFrame* barAf = findAtlasFrame("sliderBar.png");
             if (!barAf) barAf = findAtlasFrame("sliderBar_001.png");
-            if (barAf && BootScene::textures.find("GJ_WebSheet") != BootScene::textures.end()) {
-                texID = BootScene::textures["GJ_WebSheet"].id;
+            if (barAf) {
+                if (barAf->textureId != 0) texID = barAf->textureId;
+                else if (!barAf->atlas.empty()) {
+                    auto itA = BootScene::textures.find(barAf->atlas);
+                    if (itA != BootScene::textures.end()) texID = itA->second.id;
+                }
+                if (texID == 0) {
+                    auto itWs = BootScene::textures.find("GJ_WebSheet");
+                    if (itWs != BootScene::textures.end()) texID = itWs->second.id;
+                }
                 texW = barAf->w;
                 texH = barAf->h;
                 u0_base = barAf->u0; v0_base = barAf->v0;
@@ -524,8 +532,25 @@ void GameScene::_renderPauseOverlay() {
     drawAtlasFrame("GJ_progressBar_001.png", midX, barY, origW * guiScale, origH * guiScale, 0.0f, 0.0f, 0.0f, 0.0f, 125.0f / 255.0f);
 
     int percent = std::clamp(_bestPercent, 0, 100);
-    if (percent > 0 && barFrame && BootScene::textures.find("GJ_WebSheet") != BootScene::textures.end()) {
-        uint32_t texID = BootScene::textures["GJ_WebSheet"].id;
+    uint32_t barTexId = 0;
+    if (barFrame) {
+        if (barFrame->textureId != 0) barTexId = barFrame->textureId;
+        else if (!barFrame->atlas.empty()) {
+            auto itA = BootScene::textures.find(barFrame->atlas);
+            if (itA != BootScene::textures.end()) barTexId = itA->second.id;
+        }
+    }
+    if (barTexId == 0) {
+        auto it = BootScene::textures.find("GJ_progressBar_001");
+        if (it != BootScene::textures.end()) barTexId = it->second.id;
+    }
+    if (barTexId == 0) {
+        auto itWs = BootScene::textures.find("GJ_WebSheet");
+        if (itWs != BootScene::textures.end()) barTexId = itWs->second.id;
+    }
+
+    if (percent > 0 && barFrame && barTexId != 0) {
+        uint32_t texID = barTexId;
 
         float scaleX = 0.992f;
         float scaleY = 0.86f;

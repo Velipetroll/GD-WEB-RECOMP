@@ -890,9 +890,15 @@ void GameScene::_renderCompleteLightRays() {
     float originY = flipY(_endPortalGameY);
 
     const AtlasFrame* sqAf = AtlasManager::squareFrame ? AtlasManager::squareFrame : AtlasManager::findAtlasFrame("square.png");
-    uint32_t sheetId = 0;
-    auto itWs = BootScene::textures.find("GJ_WebSheet");
-    if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
+    uint32_t sheetId = (sqAf && sqAf->textureId != 0) ? sqAf->textureId : 0;
+    if (sheetId == 0) {
+        auto itSq = BootScene::textures.find("square");
+        if (itSq != BootScene::textures.end()) sheetId = itSq->second.id;
+    }
+    if (sheetId == 0) {
+        auto itWs = BootScene::textures.find("GJ_WebSheet");
+        if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
+    }
 
     for (size_t ri = 0; ri < _lightRays.size(); ++ri) {
         if (!gpu::keepParticle(ri)) continue;

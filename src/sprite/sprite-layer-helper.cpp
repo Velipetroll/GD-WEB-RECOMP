@@ -23,60 +23,27 @@ LayeredSprite createLayeredSprite(float x, float y, const std::string& frameName
     }
 
     ls.cachedFrame = frame;
-    auto itWs = BootScene::textures.find("GJ_WebSheet");
-    if (itWs != BootScene::textures.end()) ls.cachedTexID = itWs->second.id;
+    ls.cachedTexID = 0;
+    if (frame) {
+        if (frame->textureId != 0) {
+            ls.cachedTexID = frame->textureId;
+        } else if (!frame->atlas.empty()) {
+            auto itA = BootScene::textures.find(frame->atlas);
+            if (itA != BootScene::textures.end()) ls.cachedTexID = itA->second.id;
+        }
+    }
+    if (ls.cachedTexID == 0) {
+        auto itWs = BootScene::textures.find("GJ_WebSheet");
+        if (itWs != BootScene::textures.end()) ls.cachedTexID = itWs->second.id;
+    }
 
     ls.frameName = frameName;
     ls.x = x;
     ls.y = y;
     ls.depth = depth;
     ls.visible = visible;
-    ls.offsetX = 0.0f;
-    ls.offsetY = 0.0f;
-
-    // Read spriteSourceSize and sourceSize from JSON to calculate exact offset
-    // (Aligns ship cockpit, cube eyes and vehicles)
-    if (BootScene::textCache.find("GJ_WebSheetJson") != BootScene::textCache.end()) {
-        const std::string& json = BootScene::textCache["GJ_WebSheetJson"];
-        size_t fnPos = json.find("\"" + frameName + "\"");
-        if (fnPos != std::string::npos) {
-            size_t nextPos = json.find(".png\"", fnPos + frameName.size() + 2);
-            size_t chunkLen = (nextPos != std::string::npos) ? (nextPos - fnPos) : 1000;
-            std::string chunk = json.substr(fnPos, chunkLen);
-
-            auto getChunkVal = [&](const std::string& key, size_t start) -> float {
-                size_t kPos = chunk.find("\"" + key + "\"", start);
-                if (kPos == std::string::npos) return 0.0f;
-                size_t colon = chunk.find(":", kPos);
-                if (colon == std::string::npos) return 0.0f;
-                try { return std::stof(chunk.substr(colon + 1)); } catch (...) { return 0.0f; }
-            };
-
-            size_t sssPos = chunk.find("\"spriteSourceSize\"");
-            size_t ssPos  = chunk.find("\"sourceSize\"");
-
-            if (sssPos != std::string::npos && ssPos != std::string::npos) {
-                float offX = getChunkVal("x", sssPos);
-                float offY = getChunkVal("y", sssPos);
-                float srcW = getChunkVal("w", ssPos);
-                float srcH = getChunkVal("h", ssPos);
-
-                // Restore dimensions to JSON pixels
-                float fw = frame ? (frame->w * AtlasManager::atlasScale) : srcW;
-                float fh = frame ? (frame->h * AtlasManager::atlasScale) : srcH;
-
-                if (srcW > 0.0f && srcH > 0.0f) {
-                    ls.offsetX = (offX + fw * 0.5f) - (srcW * 0.5f);
-                    ls.offsetY = (offY + fh * 0.5f) - (srcH * 0.5f);
-                }
-            }
-        }
-    }
-
-    if (AtlasManager::atlasScale > 0.0f) {
-        ls.offsetX /= AtlasManager::atlasScale;
-        ls.offsetY /= AtlasManager::atlasScale;
-    }
+    ls.offsetX = frame ? frame->offsetX : 0.0f;
+    ls.offsetY = frame ? frame->offsetY : 0.0f;
 
     return ls;
 }
@@ -92,6 +59,14 @@ void LayeredSprite::render(float extraOffsetX, float extraOffsetY) {
     if (af) {
         baseW = af->w;
         baseH = af->h;
+        if (texID == 0) {
+            if (af->textureId != 0) {
+                texID = af->textureId;
+            } else if (!af->atlas.empty()) {
+                auto itA = BootScene::textures.find(af->atlas);
+                if (itA != BootScene::textures.end()) texID = itA->second.id;
+            }
+        }
         if (texID == 0) {
             auto itWs = BootScene::textures.find("GJ_WebSheet");
             if (itWs != BootScene::textures.end()) texID = itWs->second.id;

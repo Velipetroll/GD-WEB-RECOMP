@@ -31,3 +31,7 @@ android/app/.cxx/
 android/app/libs/
 third_party/
 DEPLOY_INSTRUCTIONS.md
+
+# Exclude large resource directories
+assets/
+Resources/

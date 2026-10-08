@@ -59,17 +59,34 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
     float u0 = frame->u0, v0 = frame->v0;
     float u1 = frame->u1, v1 = frame->v1;
 
-    if (flipX) std::swap(u0, u1);
-    if (flipY) std::swap(v0, v1);
+    float qu0, qv0, qu1, qv1, qu2, qv2, qu3, qv3;
+    if (!frame->rotated) {
+        if (flipX) std::swap(u0, u1);
+        if (flipY) std::swap(v0, v1);
 
-    if (rotation == 0.0f) {
+        qu0 = u0; qv0 = v0;
+        qu1 = u1; qv1 = v0;
+        qu2 = u1; qv2 = v1;
+        qu3 = u0; qv3 = v1;
+    } else {
+        // Rotated 90 deg clockwise in sprite sheet
+        if (flipX) std::swap(v0, v1);
+        if (flipY) std::swap(u0, u1);
+
+        qu0 = u1; qv0 = v0;
+        qu1 = u1; qv1 = v1;
+        qu2 = u0; qv2 = v1;
+        qu3 = u0; qv3 = v0;
+    }
+
+    if (rotation == 0.0f && !frame->rotated) {
         float halfW = w * 0.5f;
         float halfH = h * 0.5f;
         RenderDevice::get().batchAxisAlignedQuad(
             texID,
             x - halfW, y - halfH,
             x + halfW, y + halfH,
-            u0, v0, u1, v1,
+            qu0, qv0, qu2, qv2,
             r, g, b, a, blend
         );
         return;
@@ -80,7 +97,12 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
 
     float x0, y0, x1, y1, x2, y2, x3, y3;
 
-    {
+    if (rotation == 0.0f) {
+        x0 = x - halfW; y0 = y - halfH;
+        x1 = x + halfW; y1 = y - halfH;
+        x2 = x + halfW; y2 = y + halfH;
+        x3 = x - halfW; y3 = y + halfH;
+    } else {
         float cosR, sinR;
         if (rotation == 90.0f || rotation == -270.0f) {
             cosR = 0.0f; sinR = 1.0f;
@@ -107,12 +129,140 @@ void batchAtlasFrame(uint32_t texID, const AtlasFrame* frame, float x, float y,
 
     RenderDevice::get().batchQuad(
         texID,
-        x0, y0, u0, v0,
-        x1, y1, u1, v0,
-        x2, y2, u1, v1,
-        x3, y3, u0, v1,
+        x0, y0, qu0, qv0,
+        x1, y1, qu1, qv1,
+        x2, y2, qu2, qv2,
+        x3, y3, qu3, qv3,
         r, g, b, a, blend
     );
+}
+
+void AtlasManager::loadAtlasPlist(const std::string& plistContent, const std::string& textureKey, int texW, int texH) {
+    if (plistContent.empty()) return;
+
+    float sheetW = (float)texW;
+    float sheetH = (float)texH;
+
+    // Fallback sheet dimensions from plist metadata if not passed
+    if (sheetW <= 0.0f || sheetH <= 0.0f) {
+        size_t mp = plistContent.find("<key>metadata</key>");
+        if (mp != std::string::npos) {
+            size_t szp = plistContent.find("<key>size</key>", mp);
+            if (szp != std::string::npos) {
+                size_t sp = plistContent.find("<string>{", szp);
+                if (sp != std::string::npos) {
+                    float mw = 0.0f, mh = 0.0f;
+                    if (sscanf(plistContent.c_str() + sp, "<string>{%f,%f}</string>", &mw, &mh) == 2) {
+                        if (mw > 0.0f) sheetW = mw;
+                        if (mh > 0.0f) sheetH = mh;
+                    }
+                }
+            }
+        }
+    }
+
+    if (sheetW <= 0.0f) sheetW = 1024.0f;
+    if (sheetH <= 0.0f) sheetH = 1024.0f;
+
+    uint32_t resolvedTexID = 0;
+    auto itTex = BootScene::textures.find(textureKey);
+    if (itTex != BootScene::textures.end()) {
+        resolvedTexID = itTex->second.id;
+    }
+
+    size_t fStart = plistContent.find("<key>frames</key>");
+    if (fStart == std::string::npos) return;
+    size_t dictStart = plistContent.find("<dict>", fStart);
+    if (dictStart == std::string::npos) return;
+
+    size_t pos = dictStart + 6;
+    while (pos < plistContent.size()) {
+        size_t kp = plistContent.find("<key>", pos);
+        if (kp == std::string::npos) break;
+        size_t ke = plistContent.find("</key>", kp);
+        if (ke == std::string::npos) break;
+        std::string frameName = plistContent.substr(kp + 5, ke - (kp + 5));
+        if (frameName == "metadata") break;
+
+        size_t dp = plistContent.find("<dict>", ke);
+        size_t de = plistContent.find("</dict>", dp);
+        if (dp == std::string::npos || de == std::string::npos) break;
+
+        std::string chunk = plistContent.substr(dp, de - dp + 7);
+        pos = de + 7;
+
+        float fx = 0.0f, fy = 0.0f, fw = 0.0f, fh = 0.0f;
+        float ox = 0.0f, oy = 0.0f;
+        float sw = 0.0f, sh = 0.0f;
+        bool rotated = false;
+
+        size_t fp = chunk.find("<key>frame</key>");
+        if (fp != std::string::npos) {
+            size_t sp = chunk.find("<string>{{", fp);
+            if (sp != std::string::npos) {
+                sscanf(chunk.c_str() + sp, "<string>{{%f,%f},{%f,%f}}</string>", &fx, &fy, &fw, &fh);
+            }
+        }
+
+        size_t op = chunk.find("<key>offset</key>");
+        if (op != std::string::npos) {
+            size_t sp = chunk.find("<string>{", op);
+            if (sp != std::string::npos) {
+                sscanf(chunk.c_str() + sp, "<string>{%f,%f}</string>", &ox, &oy);
+            }
+        }
+
+        size_t rp = chunk.find("<key>rotated</key>");
+        if (rp != std::string::npos) {
+            size_t tp = chunk.find("<true/>", rp);
+            if (tp != std::string::npos && tp < de) {
+                rotated = true;
+            }
+        }
+
+        size_t ssp = chunk.find("<key>sourceSize</key>");
+        if (ssp != std::string::npos) {
+            size_t sp = chunk.find("<string>{", ssp);
+            if (sp != std::string::npos) {
+                sscanf(chunk.c_str() + sp, "<string>{%f,%f}</string>", &sw, &sh);
+            }
+        } else {
+            sw = fw; sh = fh;
+        }
+
+        if (fw > 0.0f && fh > 0.0f) {
+            AtlasFrame af;
+            af.name = frameName;
+            af.atlas = textureKey;
+            af.textureId = resolvedTexID;
+            af.x = fx;
+            af.y = fy;
+            af.w = fw;
+            af.h = fh;
+            af.offsetX = ox;
+            af.offsetY = -oy; // Cocos2d bottom-up to top-down screen Y
+            af.sourceW = (sw > 0.0f) ? sw : fw;
+            af.sourceH = (sh > 0.0f) ? sh : fh;
+            af.rotated = rotated;
+
+            float texW_rect = rotated ? fh : fw;
+            float texH_rect = rotated ? fw : fh;
+
+            af.u0 = fx / sheetW;
+            af.v0 = fy / sheetH;
+            af.u1 = (fx + texW_rect) / sheetW;
+            af.v1 = (fy + texH_rect) / sheetH;
+
+            frames[frameName] = af;
+            if (frameName.size() > 4 && frameName.compare(frameName.size() - 4, 4, ".png") == 0) {
+                frames[frameName.substr(0, frameName.size() - 4)] = af;
+            } else {
+                frames[frameName + ".png"] = af;
+            }
+        }
+    }
+
+    squareFrame = findAtlasFrame("square.png");
 }
 
 void AtlasManager::loadAtlasJson(const std::string& jsonContent, int texW, int texH) {
@@ -252,14 +402,18 @@ void drawAtlasFrame(const std::string& frameName, float x, float y,
     float drawH = h;
     AtlasFrame dummyFrame;
 
-    static uint32_t s_cachedWebSheetId = 0;
     if (frame) {
-        if (s_cachedWebSheetId == 0) {
-            auto itWs = BootScene::textures.find("GJ_WebSheet");
-            if (itWs != BootScene::textures.end()) s_cachedWebSheetId = itWs->second.id;
-            else return;
+        if (frame->textureId != 0) {
+            texID = frame->textureId;
+        } else if (!frame->atlas.empty()) {
+            auto itA = BootScene::textures.find(frame->atlas);
+            if (itA != BootScene::textures.end()) texID = itA->second.id;
         }
-        texID = s_cachedWebSheetId;
+        if (texID == 0) {
+            auto itWs = BootScene::textures.find("GJ_WebSheet");
+            if (itWs != BootScene::textures.end()) texID = itWs->second.id;
+        }
+        if (texID == 0) return;
         if (drawW == 0.0f) drawW = frame->w;
         if (drawH == 0.0f) drawH = frame->h;
     } else {
@@ -314,12 +468,25 @@ void drawScale9(const std::string& textureKey, float x, float y, float w, float 
         texH = (float)it->second.height;
     } else {
         const AtlasFrame* af = findAtlasFrame(textureKey);
-        if (af && BootScene::textures.find("GJ_WebSheet") != BootScene::textures.end()) {
-            texID = BootScene::textures["GJ_WebSheet"].id;
-            texW = af->w;
-            texH = af->h;
-            uBase0 = af->u0; vBase0 = af->v0;
-            uBase1 = af->u1; vBase1 = af->v1;
+        if (af) {
+            if (af->textureId != 0) {
+                texID = af->textureId;
+            } else if (!af->atlas.empty()) {
+                auto itA = BootScene::textures.find(af->atlas);
+                if (itA != BootScene::textures.end()) texID = itA->second.id;
+            }
+            if (texID == 0) {
+                auto itWs = BootScene::textures.find("GJ_WebSheet");
+                if (itWs != BootScene::textures.end()) texID = itWs->second.id;
+            }
+            if (texID != 0) {
+                texW = af->w;
+                texH = af->h;
+                uBase0 = af->u0; vBase0 = af->v0;
+                uBase1 = af->u1; vBase1 = af->v1;
+            } else {
+                return;
+            }
         } else {
             return;
         }

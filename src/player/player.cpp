@@ -168,7 +168,7 @@ void Player::updateShipRotation(float dt) {
 }
 
 bool Player::playerIsFalling() const {
-    return p.gravityFlipped ? (p.yVelocity > 3.832796f) : (p.yVelocity < 3.832796f);
+    return p.gravityFlipped ? (p.yVelocity > 3.832796f) : (p.yVelocity < -3.832796f);
 }
 
 bool Player::_isFallingPastThreshold() const {
@@ -440,18 +440,26 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
             p.onCeiling = true;
         }
     } else {
-        // Inverted gravity: floor is at ceiling level if ceiling exists
-        if (_levelRenderer.hasCeiling()) {
-            float ceilY = _levelRenderer.getCeilingY();
-            if (!landedOnBlock && p.yVelocity >= 0.0f && p.y >= ceilY - radius) {
-                p.y = ceilY - radius;
-                hitGround(playerWorldX);
-            }
-        }
-        if (p.y <= floorY + radius && p.isFlying) {
-            p.y = floorY + radius;
+        // Inverted gravity: floor is at ceiling level (either flying ceiling or level top limit)
+        // In decompiled GJBaseGameLayer::checkCollisions / PlayerObject (lín. 24877 / 130452):
+        // ceiling boundary in basic mode is maxPortalY (or floorY + physicsConst600 if hasCeiling).
+        float ceilY = _levelRenderer.hasCeiling() ? _levelRenderer.getCeilingY() : (floorY + physicsConst600);
+        if (!landedOnBlock && p.yVelocity >= 0.0f && p.y >= ceilY - radius) {
+            p.y = ceilY - radius;
             hitGround(playerWorldX);
-            p.onCeiling = true;
+        }
+
+        // Hitting floor while upside down:
+        // Ship mode glides against the floor as a ceiling; Cube dies upon hitting floor with head (destroyFromHitHead)
+        if (p.y <= floorY + radius) {
+            if (p.isFlying) {
+                p.y = floorY + radius;
+                hitGround(playerWorldX);
+                p.onCeiling = true;
+            } else {
+                killPlayer(cameraY);
+                return;
+            }
         }
     }
 }
@@ -487,6 +495,7 @@ void Player::_createExplosionPieces(float x, float y) {
         const AtlasFrame* af;
         float offsetX, offsetY;
         float r, g, b;
+        uint32_t textureId;
     };
     std::vector<ActiveLayer> activeLayers;
 
@@ -494,7 +503,15 @@ void Player::_createExplosionPieces(float x, float y) {
         if (!ls.visible || ls.frameName.empty()) return;
         const AtlasFrame* af = findAtlasFrame(ls.frameName);
         if (!af || af->w <= 0.0f || af->h <= 0.0f) return;
-        activeLayers.push_back({af, ls.offsetX, ls.offsetY, ls.r, ls.g, ls.b});
+        uint32_t texID = ls.cachedTexID;
+        if (texID == 0) {
+            texID = af->textureId;
+            if (texID == 0 && !af->atlas.empty()) {
+                auto itA = BootScene::textures.find(af->atlas);
+                if (itA != BootScene::textures.end()) texID = itA->second.id;
+            }
+        }
+        activeLayers.push_back({af, ls.offsetX, ls.offsetY, ls.r, ls.g, ls.b, texID});
     };
 
     if (p.isFlying) {
@@ -604,14 +621,24 @@ void Player::_createExplosionPieces(float x, float y) {
 
                     float uSpan = layer.af->u1 - layer.af->u0;
                     float vSpan = layer.af->v1 - layer.af->v0;
-                    q.u0 = layer.af->u0 + uSpan * uFrac0;
-                    q.u1 = layer.af->u0 + uSpan * uFrac1;
-                    q.v0 = layer.af->v0 + vSpan * vFrac0;
-                    q.v1 = layer.af->v0 + vSpan * vFrac1;
+
+                    if (!layer.af->rotated) {
+                        q.u0 = layer.af->u0 + uSpan * uFrac0;
+                        q.u1 = layer.af->u0 + uSpan * uFrac1;
+                        q.v0 = layer.af->v0 + vSpan * vFrac0;
+                        q.v1 = layer.af->v0 + vSpan * vFrac1;
+                    } else {
+                        // In rotated texture, u corresponds to (1 - vFrac) and v corresponds to uFrac
+                        q.u0 = layer.af->u0 + uSpan * (1.0f - vFrac1);
+                        q.u1 = layer.af->u0 + uSpan * (1.0f - vFrac0);
+                        q.v0 = layer.af->v0 + vSpan * uFrac0;
+                        q.v1 = layer.af->v0 + vSpan * uFrac1;
+                    }
 
                     q.r = layer.r;
                     q.g = layer.g;
                     q.b = layer.b;
+                    q.textureID = layer.textureId;
 
                     piece.quads.push_back(q);
                 }
@@ -1171,7 +1198,9 @@ void Player::render(float cameraX, float cameraY) {
             }
         }
 
-        uint32_t atlas = BootScene::textures["GJ_WebSheet"].id;
+        uint32_t fallbackTex = 0;
+        auto itWs = BootScene::textures.find("GJ_WebSheet");
+        if (itWs != BootScene::textures.end()) fallbackTex = itWs->second.id;
 
         // Native batched rendering and CPU rotation for maximum performance on Intel GMA
         for (const auto& piece : _explosionPieces) {
@@ -1181,6 +1210,9 @@ void Player::render(float cameraX, float cameraY) {
             float sinR = std::sin(rad);
 
             for (const auto& q : piece.quads) {
+                uint32_t quadTex = (q.textureID != 0) ? q.textureID : fallbackTex;
+                if (quadTex == 0) continue;
+
                 float x0 = piece.x + (q.vx0 * cosR - q.vy0 * sinR);
                 float y0 = piece.y + (q.vx0 * sinR + q.vy0 * cosR);
 
@@ -1194,7 +1226,7 @@ void Player::render(float cameraX, float cameraY) {
                 float y3 = piece.y + (q.vx0 * sinR + q.vy1 * cosR);
 
                 RenderDevice::get().batchQuad(
-                    atlas,
+                    quadTex,
                     x0, y0, q.u0, q.v0,
                     x1, y1, q.u1, q.v0,
                     x2, y2, q.u1, q.v1,

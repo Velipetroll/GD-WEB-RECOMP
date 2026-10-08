@@ -135,8 +135,12 @@ void WinEffects::render(float cameraX, float cameraY) {
     }
 
     const AtlasFrame* sqFrame = AtlasManager::squareFrame;
-    uint32_t sheetId = 0;
-    if (sqFrame) {
+    uint32_t sheetId = (sqFrame && sqFrame->textureId != 0) ? sqFrame->textureId : 0;
+    if (sheetId == 0) {
+        auto itSq = BootScene::textures.find("square");
+        if (itSq != BootScene::textures.end()) sheetId = itSq->second.id;
+    }
+    if (sheetId == 0) {
         auto itWs = BootScene::textures.find("GJ_WebSheet");
         if (itWs != BootScene::textures.end()) sheetId = itWs->second.id;
     }

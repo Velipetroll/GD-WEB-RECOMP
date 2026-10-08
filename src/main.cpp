@@ -246,11 +246,6 @@ int main(int argc, char* argv[]) {
     bootScene.create();
     RenderDevice::get().syncTexturesFromBootScene();
 
-    if (BootScene::textCache.find("GJ_WebSheetJson") != BootScene::textCache.end()) {
-        Texture tex = BootScene::textures["GJ_WebSheet"];
-        AtlasManager::loadAtlasJson(BootScene::textCache["GJ_WebSheetJson"], tex.width, tex.height);
-    }
-
     std::unique_ptr<GameScene> gameScene = std::make_unique<GameScene>();
     gameScene->init();
 
