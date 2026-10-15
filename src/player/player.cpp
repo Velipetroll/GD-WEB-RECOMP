@@ -168,7 +168,7 @@ void Player::updateShipRotation(float dt) {
 }
 
 bool Player::playerIsFalling() const {
-    return p.gravityFlipped ? (p.yVelocity > 3.832796f) : (p.yVelocity < 3.832796f);
+    return p.gravityFlipped ? (p.yVelocity > 3.832796f) : (p.yVelocity < -3.832796f);
 }
 
 bool Player::_isFallingPastThreshold() const {
@@ -440,18 +440,26 @@ void Player::checkCollisions(float playerWorldXArg, float cameraY) {
             p.onCeiling = true;
         }
     } else {
-        // Inverted gravity: floor is at ceiling level if ceiling exists
-        if (_levelRenderer.hasCeiling()) {
-            float ceilY = _levelRenderer.getCeilingY();
-            if (!landedOnBlock && p.yVelocity >= 0.0f && p.y >= ceilY - radius) {
-                p.y = ceilY - radius;
-                hitGround(playerWorldX);
-            }
-        }
-        if (p.y <= floorY + radius && p.isFlying) {
-            p.y = floorY + radius;
+        // Inverted gravity: floor is at ceiling level (either flying ceiling or level top limit)
+        // In decompiled GJBaseGameLayer::checkCollisions / PlayerObject (lín. 24877 / 130452):
+        // ceiling boundary in basic mode is maxPortalY (or floorY + physicsConst600 if hasCeiling).
+        float ceilY = _levelRenderer.hasCeiling() ? _levelRenderer.getCeilingY() : (floorY + physicsConst600);
+        if (!landedOnBlock && p.yVelocity >= 0.0f && p.y >= ceilY - radius) {
+            p.y = ceilY - radius;
             hitGround(playerWorldX);
-            p.onCeiling = true;
+        }
+
+        // Hitting floor while upside down:
+        // Ship mode glides against the floor as a ceiling; Cube dies upon hitting floor with head (destroyFromHitHead)
+        if (p.y <= floorY + radius) {
+            if (p.isFlying) {
+                p.y = floorY + radius;
+                hitGround(playerWorldX);
+                p.onCeiling = true;
+            } else {
+                killPlayer(cameraY);
+                return;
+            }
         }
     }
 }

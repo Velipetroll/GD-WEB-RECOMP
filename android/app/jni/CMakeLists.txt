@@ -7,8 +7,12 @@ project(GAME)
 # android_ndk_import_module_cpufeatures()
 
 
+add_definitions(-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0)
+
 # SDL sources are in a subfolder named "SDL"
 add_subdirectory(SDL)
+
+target_sources(SDL2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/bionic_compat.c)
 
 # Compilation of companion libraries
 #add_subdirectory(SDL_image)

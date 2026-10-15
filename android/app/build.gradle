@@ -12,15 +12,22 @@ android {
         namespace "org.libsdl.app"
     }
     compileSdkVersion 34
+    if (project.hasProperty('ndkVersion')) {
+        ndkVersion project.property('ndkVersion')
+    }
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion project.hasProperty('minSdkVersion') ? project.property('minSdkVersion').toInteger() : 21
         targetSdkVersion 34
         versionCode 1
         versionName "1.0"
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_STL=c++_shared"
-                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+                arguments "-DANDROID_STL=c++_static"
+                if (project.hasProperty('abiFilters')) {
+                    abiFilters project.property('abiFilters').split(',')
+                } else {
+                    abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+                }
             }
         }
     }

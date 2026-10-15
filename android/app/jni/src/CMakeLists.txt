@@ -27,6 +27,7 @@ set(GAME_SOURCES
     ${SRC_DIR}/sprite/sprite-layer-helper.cpp
     ${SRC_DIR}/trail/trail-renderer.cpp
     ${SRC_DIR}/utils/win-effects.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bionic_compat.c
 )
 
 add_library(main SHARED ${GAME_SOURCES})
